@@ -1,0 +1,23 @@
+version: '3'
+services:
+  # authapp:
+  #   build: ./authserver/.
+  #   ports:
+  #     - "8080:8080"
+  #   volumes:
+  #     - ./authserver:/srv/app
+      
+  postgres:
+    image: postgres:16-alpine3.18
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=authdb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+
+volumes:
+  pgdata:
