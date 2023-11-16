@@ -26,6 +26,7 @@ type payload struct {
 	Staff     bool
 }
 
+// generate crypto random for Session ID as well PW Salt.
 func randomCryptoBytes() ([]byte, error) {
 	bytes := make([]byte, 16)
 	_, err := rand.Read(bytes)
@@ -35,6 +36,7 @@ func randomCryptoBytes() ([]byte, error) {
 	return bytes, nil
 }
 
+// For session_id use
 func GenerateCryptoString() (string, error) {
 	bytes, err := randomCryptoBytes()
 	if err != nil {
@@ -43,17 +45,43 @@ func GenerateCryptoString() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func PasswordHasher(plainTxtPW string) (string, error) {
-	salt, err := randomCryptoBytes()
-	if err != nil {
-		return "", nil
-	}
+func hasher(salt []byte, plainTxtPW string) ([]byte, error) {
 	passwordBytes := []byte(plainTxtPW)
 
 	hash, err := scrypt.Key(passwordBytes, salt, 32768, 8, 1, 32)
 	if err != nil {
-		return "", nil
+		return nil, err
 	}
 	passwordHash := append(salt, hash...)
-	return base64.StdEncoding.EncodeToString(passwordHash), nil
+	return passwordHash, nil
+} // base64.StdEncoding.EncodeToString(passwordHash),
+
+func VerifyPassword(storedHashStr, password string) (bool, error) {
+	byteHash, err := base64.StdEncoding.DecodeString(storedHashStr)
+	if err != nil {
+		return false, err
+	}
+	salt := byteHash[:16]
+	storedHashBytes := byteHash[16:]
+
+	pwHashed, err := hasher(salt, password)
+	if err != nil {
+		return false, err
+
+	} else if len(pwHashed) != len(storedHashBytes) {
+		return false, nil
+	}
+
+	for i := range pwHashed {
+		if pwHashed[i] != storedHashBytes[i] {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func GetPasswordHash(plainTxtPW string) string {
+	salt, _ := randomCryptoBytes()
+	hash, _ := hasher(salt, plainTxtPW)
+	return base64.StdEncoding.EncodeToString(hash)
 }
