@@ -8,7 +8,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 
-	. "authapi/db"
+	"authapi/db"
 )
 
 const (
@@ -16,7 +16,7 @@ const (
 )
 
 func main() {
-	dbService := DbService()
+	dbService := db.DbService()
 	defer dbService.Close()
 
 	r := chi.NewRouter()
