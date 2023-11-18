@@ -37,3 +37,26 @@ func main() {
 	fmt.Printf("Listening on: http://localhost%s\n", port)
 	http.ListenAndServe(port, r)
 }
+
+func ContentType(next http.Handler, media string) http.Handler {
+	mediaTypes := map[string]string{
+		"JSON": "application/json",
+		"text": "text/html",
+		"form": "multipart/form-data",
+	}
+	conType := mediaTypes[media]
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contentHeader := r.Header.Get("Content-Type")
+		if contentHeader == "" {
+			msg := "Content-Type Header is blank"
+			http.Error(w, msg, http.StatusUnsupportedMediaType)
+			return
+		}
+		if contentHeader != conType {
+			msg := "Unsupported Media Type"
+			http.Error(w, msg, http.StatusUnsupportedMediaType)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}

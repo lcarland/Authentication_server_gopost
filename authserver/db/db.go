@@ -137,14 +137,20 @@ func (db *Db) SelectUserById(id int) (*User, error) {
 	return &u, nil
 }
 
-type userSession struct {
-	SessionId string `db:"session_id"`
+type userAuth struct {
+	Id          int    `db:"id"`
+	Username    string `db:"username"`
+	IsSuperuser bool   `db:"is_superuser"`
+	IsStaff     bool   `db:"is_staff"`
+	IsActive    bool   `db:"is_active"`
+	SessionId   string `db:"session_id"`
 }
 
-func (db *Db) SelectUserSession(id int) string {
-	query := queryConstructor("users", "session_id", "id = $1")
+func (db *Db) SelectUserAuth(id int) string {
+	fields := "id, username, is_superuser is_staff, is_active, session_id"
+	query := queryConstructor("users", fields, "id = $1")
 	rows, _ := db.Query(context.Background(), query, id)
-	s, err := pgx.CollectExactlyOneRow[userSession](rows, pgx.RowToStructByName[userSession])
+	s, err := pgx.CollectExactlyOneRow[userAuth](rows, pgx.RowToStructByName[userAuth])
 	if err != nil {
 		fmt.Println(err)
 		return ""
