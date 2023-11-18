@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/joho/godotenv"
 
 	"authapi/db"
 )
@@ -16,6 +18,11 @@ const (
 )
 
 func main() {
+	err := godotenv.Load("../.env")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	dbService := db.DbService()
 	defer dbService.Close()
 
