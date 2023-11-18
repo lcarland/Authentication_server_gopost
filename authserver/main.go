@@ -10,11 +10,8 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
 
+	"authapi/config"
 	"authapi/db"
-)
-
-const (
-	secret = "u~wNsbYndsuhP2H^ghQuLXCiLUkny$NNa9g-PT7$TWUpbS@S94xPu"
 )
 
 func main() {
@@ -29,8 +26,8 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   ORIGINS,
-		AllowedMethods:   METHODS,
+		AllowedOrigins:   config.ORIGINS,
+		AllowedMethods:   config.METHODS,
 		AllowCredentials: true,
 	}))
 

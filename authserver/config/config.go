@@ -1,4 +1,6 @@
-package main
+package config
+
+import "os"
 
 // GLOBAL Config settings
 
@@ -12,3 +14,5 @@ var ORIGINS = []string{
 var METHODS = []string{
 	"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS",
 }
+
+var SECRET string = os.Getenv("SECRET_KEY")

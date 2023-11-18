@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 	_ "time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
 
-	_ "authapi/utils"
+	"authapi/utils"
 )
 
 const (
@@ -24,10 +26,11 @@ type Db struct {
 }
 
 func DbService() *Db {
-	var pguser string = os.Getenv("POSTGRES_USER")
-	var pgpw string = os.Getenv("POSTGRES_PASSWORD")
+	var PGUSER string = os.Getenv("POSTGRES_USER")
+	var PGPASSWD string = os.Getenv("POSTGRES_PASSWORD")
 
-	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s", pguser, pgpw, host, port, dbname)
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s", PGUSER, PGPASSWD, host, port, dbname)
+	fmt.Println(connString)
 
 	dbpool, err := pgxpool.New(context.Background(), connString)
 	if err != nil {
@@ -61,73 +64,120 @@ func (db *Db) GetCountry(code string) (*country, error) {
 	return &c, nil
 }
 
-// type NewUser struct {
-// 	Username, Password, FirstName, LastName,
-// 	Email, Phone, Country string
-// 	IsSuper, IsStaff bool
-// }
+type NewUser struct {
+	Username, Password, FirstName, LastName,
+	Email, Phone, Country string
+	IsSuper, IsStaff bool
+}
 
-// func (db *Db) InsertUser(u NewUser) error {
-// 	query := "INSERT INTO users " +
-// 		"(username, passwordHash, first_name, last_name, email, " +
-// 		"phone, country, is_superuser, is_staff) VALUES " +
-// 		"($1, $2, $3, $4, $5, $6, $7, $8, $9);"
-// 	pwHash := GetPasswordHash(u.Password)
+func (db *Db) InsertUser(u NewUser) error {
+	query := "INSERT INTO users " +
+		"(username, passwordHash, first_name, last_name, email, " +
+		"phone, country, is_superuser, is_staff) VALUES " +
+		"($1, $2, $3, $4, $5, $6, $7, $8, $9);"
+	pwHash := utils.GetPasswordHash(u.Password)
 
-// 	_, err := db.Exec(query,
-// 		u.Username, pwHash, u.FirstName, u.LastName, u.Email,
-// 		u.Phone, u.Country, u.IsSuper, u.IsStaff,
-// 	)
-// 	if err != nil {
-// 		fmt.Println("DB INSERT Error:", err)
-// 		return err
-// 	}
-// 	return nil
-// }
+	_, err := db.Exec(context.Background(), query,
+		u.Username, pwHash, u.FirstName, u.LastName, u.Email,
+		u.Phone, u.Country, u.IsSuper, u.IsStaff,
+	)
+	if err != nil {
+		fmt.Println("DB INSERT Error:", err)
+		return err
+	}
+	return nil
+}
 
-// type User struct {
-// 	Id int
-// 	Username, FirstName, LastName,
-// 	Email, Phone, Country string
-// 	IsSuper, IsStaff, Is_active bool
-// 	DateJoined, LastLogin       time.Time
-// }
+type User struct {
+	Id         int       `db:"id"`
+	Username   string    `db:"username"`
+	FirstName  string    `db:"first_name"`
+	LastName   string    `db:"last_name"`
+	Email      string    `db:"email"`
+	Phone      string    `db:"phone"`
+	Country    string    `db:"country"`
+	IsSuper    bool      `db:"is_superuser"`
+	IsStaff    bool      `db:"is_staff"`
+	Is_active  bool      `db:"is_active"`
+	DateJoined time.Time `db:"date_joined"`
+	LastLogin  time.Time `db:"last_login"`
+}
 
-// func userQueryConstructor(cols string, selector string) string {
-// 	return fmt.Sprintf("SELECT %s FROM users WHERE %s;", cols, selector)
-// }
+func queryConstructor(table string, cols string, selector string) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE %s;", cols, table, selector)
+}
 
-// var userPrivate string = "id, username, first_name, last_name, email, " +
-// 	"phone, country, is_superuser, is_staff, is_active, date_joined, " +
-// 	"last_login"
+func updateConstructor(table string, val string, selector string) string {
+	return fmt.Sprintf("UPDATE %s SET %s WHERE %s", table, val, selector)
+}
 
-// var userPublic string = "id, username, email, country, is_active, date_joined"
+var userPrivate string = "id, username, first_name, last_name, email, " +
+	"phone, country, is_superuser, is_staff, is_active, date_joined, " +
+	"last_login"
 
-// func (db *Db) SelectUserById(id int) (*User, error) {
-// 	query := userQueryConstructor(userPrivate, "id = $1")
-// 	var u User
+var userPublic string = "id, username, email, country, is_active, date_joined"
 
-// 	err := db.QueryRow(query, id).Scan(
-// 		&u.Id, &u.Username, &u.FirstName, &u.LastName, &u.Email,
-// 		&u.Phone, &u.Country, &u.IsSuper, &u.IsStaff, &u.Is_active,
-// 		&u.DateJoined, &u.LastLogin,
-// 	)
-// 	if err != nil {
-// 		fmt.Println("DB SELECT Error:", err)
-// 		return nil, err
-// 	}
-// 	return &u, nil
-// }
+func (db *Db) SelectUserById(id int) (*User, error) {
+	query := queryConstructor("users", userPrivate, "id = $1")
 
-// type UserSession struct {
-// 	SessionId string
-// }
+	rows, _ := db.Query(context.Background(), query, id)
+	u, err := pgx.CollectExactlyOneRow[User](rows, pgx.RowToStructByName[User])
+	if err != nil {
+		fmt.Println("DB SELECT Error:", err)
+		return nil, err
+	}
+	return &u, nil
+}
 
-// func sessionQuery(col string) string {
-// 	return fmt.Sprintf("SELECT session_id "+
-// 		"FROM users WHERE %s;", col)
-// }
+type userSession struct {
+	SessionId string `db:"session_id"`
+}
 
-// func (db *Db) SelectUserSession() {
+func (db *Db) SelectUserSession(id int) string {
+	query := queryConstructor("users", "session_id", "id = $1")
+	rows, _ := db.Query(context.Background(), query, id)
+	s, err := pgx.CollectExactlyOneRow[userSession](rows, pgx.RowToStructByName[userSession])
+	if err != nil {
+		fmt.Println(err)
+		return ""
+	}
+	return s.SessionId
+}
 
-// }
+func (db *Db) NewUserSession(id int) error {
+	session, _ := utils.GenerateCryptoString()
+	val := fmt.Sprintf("session_id = %s", session)
+	query := updateConstructor("users", val, "id = $1")
+	_, err := db.Exec(context.Background(), query, id)
+	if err != nil {
+		fmt.Println("Session Update Error,", err)
+		return err
+	}
+	return nil
+}
+
+type userHash struct {
+	PasswordHash string `db:"passwordHash"`
+}
+
+func (db *Db) SelectUserHash(id int) string {
+	query := queryConstructor("users", "passwordHash", "id = $1")
+	rows, _ := db.Query(context.Background(), query, id)
+	h, err := pgx.CollectExactlyOneRow[userHash](rows, pgx.RowToStructByName[userHash])
+	if err != nil {
+		fmt.Println(err)
+		return ""
+	}
+	return h.PasswordHash
+}
+
+func (db *Db) NewUserHash(id int, password string) error {
+	hash := utils.GetPasswordHash(password)
+	val := fmt.Sprintf("passwordHash = %s", hash)
+	query := updateConstructor("users", val, "id = $1")
+	_, err := db.Exec(context.Background(), query, id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
