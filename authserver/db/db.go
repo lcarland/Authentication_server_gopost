@@ -30,7 +30,6 @@ func DbService() *Db {
 	var PGPASSWD string = os.Getenv("POSTGRES_PASSWORD")
 
 	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s", PGUSER, PGPASSWD, host, port, dbname)
-	fmt.Println(connString)
 
 	dbpool, err := pgxpool.New(context.Background(), connString)
 	if err != nil {
@@ -44,24 +43,33 @@ func DbService() *Db {
 	return &Db{dbpool}
 }
 
-type country struct {
-	Code  string
-	Name  string
-	Phone string
+type Country struct {
+	Code  string `db:"code"`
+	Name  string `db:"country"`
+	Phone string `db:"dialcode"`
 }
 
-func (db *Db) GetCountry(code string) (*country, error) {
+func (db *Db) GetCountry(code string) (*Country, error) {
 	query := "SELECT code, country, dialcode " +
 		"FROM countries WHERE code = $1;"
-	var c country
-	err := db.QueryRow(context.Background(), query, code).Scan(
-		&c.Code, &c.Name, &c.Phone,
-	)
+	rows, err := db.Query(context.Background(), query, code)
+	if err != nil {
+		fmt.Println("DB Error Occurred:", err)
+		return nil, err
+	}
+	c, err := pgx.CollectExactlyOneRow[Country](rows, pgx.RowToStructByName[Country])
 	if err != nil {
 		fmt.Println("DB Error Occurred:", err)
 		return nil, err
 	}
 	return &c, nil
+}
+
+func (db *Db) GetAllCountries() (*[]Country, error) {
+	query := "SELECT code, country, dialcode FROM countries;"
+	rows, _ := db.Query(context.Background(), query)
+	c, err := pgx.CollectRows[Country](rows, pgx.RowToStructByName[Country])
+	return &c, err
 }
 
 type NewUser struct {
