@@ -173,16 +173,15 @@ func (db *Db) GetUserId(username string) int {
 	return id.Id
 }
 
-func (db *Db) NewUserSession(id int) error {
+func (db *Db) NewUserSession(id int) string {
 	session, _ := utils.GenerateCryptoString()
-	val := fmt.Sprintf("session_id = %s", session)
-	query := updateConstructor("users", val, "id = $1")
-	_, err := db.Exec(context.Background(), query, id)
+	query := updateConstructor("users", "session_id = $1", "id = $2")
+	_, err := db.Exec(context.Background(), query, session, id)
 	if err != nil {
 		fmt.Println("Session Update Error,", err)
-		return err
+		return ""
 	}
-	return nil
+	return session
 }
 
 type userHash struct {
@@ -200,7 +199,7 @@ func (db *Db) SelectUserHash(id int) string {
 	return h.PasswordHash
 }
 
-func (db *Db) NewUserHash(id int, password string) error {
+func (db *Db) NewUserHashById(id int, password string) error {
 	hash := utils.GetPasswordHash(password)
 	val := fmt.Sprintf("passwordHash = %s", hash)
 	query := updateConstructor("users", val, "id = $1")

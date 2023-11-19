@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"authapi/db"
+	"authapi/utils"
 	. "authapi/utils"
 )
 
@@ -79,7 +80,7 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 	var u db.NewUser
 	err := dec.Decode(&u)
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), 422)
 		return
 	}
 
@@ -106,12 +107,34 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 	var u userCreds
 	err := dec.Decode(&u)
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), 422)
+		return
+	}
+	id := db.DbService().GetUserId(u.Username)
+	if id == 0 {
+		fmt.Println("Username Failed")
+		http.Error(w, "Invalid Credentials", 401)
 		return
 	}
 
-	id := db.DbService().GetUserId(u.Username)
-	if id == 0 {
-		http.Error(w, "User not found", 401)
+	dbHash := db.DbService().SelectUserHash(id)
+	if dbHash == "" {
+		http.Error(w, "Password Change Needed", 409)
+		return
 	}
+
+	pw_valid, _ := utils.VerifyPassword(dbHash, u.Password)
+	if !pw_valid {
+		fmt.Println("Invalid Password")
+		http.Error(w, "Invalid Credentials", 401)
+		return
+	}
+	sessionId := db.DbService().NewUserSession(id)
+	if sessionId == "" {
+		http.Error(w, "New Session Error", 500)
+		return
+	}
+	// JWT Needed Here
+	// Set session to Cookies
+	WriteJSON(w, map[any]any{"Msg": "Login Succes", "SessionId": sessionId})
 }
