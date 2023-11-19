@@ -28,6 +28,9 @@ func apiRoutes(r chi.Router) {
 		r.Use(VerifyTypeJSON)
 		r.Post("/", loginUser)
 	})
+	r.Route("/refresh", func(r chi.Router) {
+		r.Use(VerifyTypeJSON)
+	})
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
@@ -49,6 +52,7 @@ func index(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println(result)
 	WriteJSON(w, result)
+	w.WriteHeader(200)
 }
 
 func CountryCtx(next http.Handler) http.Handler {
@@ -68,6 +72,7 @@ func getCountry(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	country := ctx.Value("country").(*db.Country)
 	WriteJSON(w, country)
+	w.WriteHeader(200)
 }
 
 func createUser(w http.ResponseWriter, r *http.Request) {
@@ -98,6 +103,11 @@ type userCreds struct {
 	Password string
 }
 
+type tokenResponse struct {
+	AccessToken  string
+	RefreshToken string
+}
+
 func loginUser(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 
@@ -110,31 +120,39 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 422)
 		return
 	}
-	id := db.DbService().GetUserId(u.Username)
-	if id == 0 {
+	user, err := db.DbService().SelectUserAuth(u.Username)
+	if err != nil {
 		fmt.Println("Username Failed")
 		http.Error(w, "Invalid Credentials", 401)
 		return
 	}
 
-	dbHash := db.DbService().SelectUserHash(id)
-	if dbHash == "" {
+	if user.PasswordHash == "" {
 		http.Error(w, "Password Change Needed", 409)
 		return
 	}
 
-	pw_valid, _ := utils.VerifyPassword(dbHash, u.Password)
+	pw_valid, _ := utils.VerifyPassword(user.PasswordHash, u.Password)
 	if !pw_valid {
 		fmt.Println("Invalid Password")
 		http.Error(w, "Invalid Credentials", 401)
 		return
 	}
-	sessionId := db.DbService().NewUserSession(id)
-	if sessionId == "" {
+	newSessionId, err := db.DbService().NewUserSession(user.Id)
+	if err != nil {
 		http.Error(w, "New Session Error", 500)
 		return
 	}
+	fmt.Println(user)
+	accessToken, err := utils.GenerateAccessToken(user.Id, user.Username, user.IsStaff)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+	}
+	userTokens := tokenResponse{
+		AccessToken:  accessToken,
+		RefreshToken: newSessionId,
+	}
 	// JWT Needed Here
-	// Set session to Cookies
-	WriteJSON(w, map[any]any{"Msg": "Login Succes", "SessionId": sessionId})
+	WriteJSON(w, userTokens)
+	w.WriteHeader(201)
 }

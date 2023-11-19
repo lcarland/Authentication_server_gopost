@@ -137,25 +137,25 @@ func (db *Db) SelectUserById(id int) (*User, error) {
 	return &u, nil
 }
 
-type userAuth struct {
-	Id          int    `db:"id"`
-	Username    string `db:"username"`
-	IsSuperuser bool   `db:"is_superuser"`
-	IsStaff     bool   `db:"is_staff"`
-	IsActive    bool   `db:"is_active"`
-	SessionId   string `db:"session_id"`
+type UserAuth struct {
+	Id           int    `db:"id"`
+	Username     string `db:"username"`
+	PasswordHash string `db:"passwordHash"`
+	IsSuperuser  bool   `db:"is_superuser"`
+	IsStaff      bool   `db:"is_staff"`
+	IsActive     bool   `db:"is_active"`
+	SessionId    string `db:"session_id"`
 }
 
-func (db *Db) SelectUserAuth(id int) string {
-	fields := "id, username, is_superuser is_staff, is_active, session_id"
-	query := queryConstructor("users", fields, "id = $1")
-	rows, _ := db.Query(context.Background(), query, id)
-	s, err := pgx.CollectExactlyOneRow[userAuth](rows, pgx.RowToStructByName[userAuth])
+func (db *Db) SelectUserAuth(username string) (*UserAuth, error) {
+	fields := "id, username, passwordHash, is_superuser, is_staff, is_active, session_id"
+	query := queryConstructor("users", fields, "username = $1")
+	rows, _ := db.Query(context.Background(), query, username)
+	s, err := pgx.CollectExactlyOneRow[UserAuth](rows, pgx.RowToStructByName[UserAuth])
 	if err != nil {
-		fmt.Println(err)
-		return ""
+		return nil, err
 	}
-	return s.SessionId
+	return &s, nil
 }
 
 type userId struct {
@@ -173,15 +173,15 @@ func (db *Db) GetUserId(username string) int {
 	return id.Id
 }
 
-func (db *Db) NewUserSession(id int) string {
+func (db *Db) NewUserSession(id int) (string, error) {
 	session, _ := utils.GenerateCryptoString()
 	query := updateConstructor("users", "session_id = $1", "id = $2")
 	_, err := db.Exec(context.Background(), query, session, id)
 	if err != nil {
 		fmt.Println("Session Update Error,", err)
-		return ""
+		return "", err
 	}
-	return session
+	return session, nil
 }
 
 type userHash struct {
