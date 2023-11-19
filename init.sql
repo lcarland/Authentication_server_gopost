@@ -19,7 +19,7 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE NOT NULL,
     phone VARCHAR(16), -- E.164 Format i.e. +15551231234
         -- use countries table to get phone code
-    country VARCHAR, -- Foreign Key
+    country VARCHAR DEFAULT 'XX', -- Foreign Key
     is_superuser BOOLEAN DEFAULT FALSE NOT NULL,
     is_staff BOOLEAN DEFAULT FALSE NOT NULL,
     is_active BOOLEAN DEFAULT TRUE NOT NULL,
@@ -35,6 +35,7 @@ CREATE TABLE users (
 );
 
 INSERT INTO countries ( code, country, dialcode ) VALUES
+('XX', 'No Country Specified', ''),
 ('US', 'United States', '+1'),
 ('GB', 'United Kingdom', '+44'),
 ('CA', 'Canada', '+1'),

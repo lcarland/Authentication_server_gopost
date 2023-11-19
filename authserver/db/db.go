@@ -158,6 +158,21 @@ func (db *Db) SelectUserAuth(id int) string {
 	return s.SessionId
 }
 
+type userId struct {
+	Id int
+}
+
+func (db *Db) GetUserId(username string) int {
+	query := queryConstructor("users", "id", "username = $1")
+	rows, _ := db.Query(context.Background(), query, username)
+	id, err := pgx.CollectExactlyOneRow[userId](rows, pgx.RowToStructByName[userId])
+	if err != nil {
+		fmt.Println(err)
+		return 0
+	}
+	return id.Id
+}
+
 func (db *Db) NewUserSession(id int) error {
 	session, _ := utils.GenerateCryptoString()
 	val := fmt.Sprintf("session_id = %s", session)

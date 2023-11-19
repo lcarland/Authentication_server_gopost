@@ -38,13 +38,13 @@ func main() {
 	http.ListenAndServe(port, r)
 }
 
-func ContentType(next http.Handler, media string) http.Handler {
-	mediaTypes := map[string]string{
-		"JSON": "application/json",
-		"text": "text/html",
-		"form": "multipart/form-data",
-	}
-	conType := mediaTypes[media]
+var mediaTypes = map[string]string{
+	"JSON": "application/json",
+	"text": "text/html",
+	"form": "multipart/form-data",
+}
+
+func VerifyTypeJSON(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		contentHeader := r.Header.Get("Content-Type")
 		if contentHeader == "" {
@@ -52,7 +52,7 @@ func ContentType(next http.Handler, media string) http.Handler {
 			http.Error(w, msg, http.StatusUnsupportedMediaType)
 			return
 		}
-		if contentHeader != conType {
+		if contentHeader != mediaTypes["JSON"] {
 			msg := "Unsupported Media Type"
 			http.Error(w, msg, http.StatusUnsupportedMediaType)
 			return
