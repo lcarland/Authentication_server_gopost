@@ -48,28 +48,32 @@ func hasher(salt []byte, plainTxtPW string) ([]byte, error) {
 } // base64.StdEncoding.EncodeToString(passwordHash),
 
 func VerifyPassword(storedHashStr, password string) (bool, error) {
+
 	byteHash, err := base64.StdEncoding.DecodeString(storedHashStr)
 	if err != nil {
 		return false, err
 	}
 	salt := byteHash[:16]
 
-	pwHashed, err := hasher(salt, password)
+	pwHashBytes, err := hasher(salt, password)
 	if err != nil {
 		fmt.Println(err)
 		return false, err
 
-	} else if len(pwHashed) != len(byteHash) {
+	}
+
+	pwHashed := base64.StdEncoding.EncodeToString(pwHashBytes)
+
+	if len(pwHashed) != len(storedHashStr) {
 		fmt.Println("Hash not same len")
 		return false, nil
 	}
 
-	for i := range pwHashed {
-		if pwHashed[i] != byteHash[i] {
-			fmt.Println("Hash Byte mismatch")
-			return false, nil
-		}
+	if pwHashed != storedHashStr {
+		fmt.Println("Hash Mismatch")
+		return false, nil
 	}
+
 	return true, nil
 }
 
@@ -113,14 +117,14 @@ func ValidateAccessToken(jwt string) (*TokenClaims, error) {
 	var payload TokenClaims
 
 	token := strings.Split(jwt, ".")
-	signer, _ := base64.RawStdEncoding.DecodeString(token[2])
+	signer := token[2]
 
 	head_payload := fmt.Sprintf("%s.%s", token[0], token[1])
 	mac := hmac.New(sha256.New, SECRET)
 	mac.Write([]byte(head_payload))
+	sigCheck := base64Encode(mac.Sum(nil))
 
-	verified := hmac.Equal(mac.Sum(nil), signer)
-	if !verified {
+	if signer != sigCheck {
 		return nil, fmt.Errorf("Signature does not match")
 	}
 
@@ -132,6 +136,10 @@ func ValidateAccessToken(jwt string) (*TokenClaims, error) {
 
 	payloadDec, _ := base64.RawStdEncoding.DecodeString(token[1])
 	json.Unmarshal(payloadDec, &payload)
+
+	if payload.IAT.Before(time.Now().UTC()) {
+		return nil, fmt.Errorf("expired")
+	}
 
 	return &payload, nil
 }

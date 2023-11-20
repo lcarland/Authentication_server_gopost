@@ -25,12 +25,19 @@ func apiRoutes(r chi.Router) {
 		r.Use(VerifyTypeJSON)
 		r.Post("/", createUser)
 	})
+	r.Route("/remove_user", func(r chi.Router) {
+		r.Use()
+	})
 	r.Route("/login", func(r chi.Router) {
 		r.Use(VerifyTypeJSON)
 		r.Post("/", loginUser)
 	})
 	r.Route("/refresh", func(r chi.Router) {
 		r.Use(VerifyTypeJSON)
+	})
+	r.Route("/checkjwt", func(r chi.Router) {
+		r.Use(TokenVerify)
+		r.Get("/", checkJwt)
 	})
 }
 
@@ -52,8 +59,7 @@ func index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Println(result)
-	WriteJSON(w, result)
-	w.WriteHeader(200)
+	WriteJSON(w, result, 200)
 }
 
 func CountryCtx(next http.Handler) http.Handler {
@@ -72,8 +78,7 @@ func CountryCtx(next http.Handler) http.Handler {
 func getCountry(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	country := ctx.Value("country").(*db.Country)
-	WriteJSON(w, country)
-	w.WriteHeader(200)
+	WriteJSON(w, country, 200)
 }
 
 func createUser(w http.ResponseWriter, r *http.Request) {
@@ -123,7 +128,7 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := db.DbService().SelectUserAuth(u.Username)
 	if err != nil {
-		fmt.Println("Username Failed")
+		fmt.Println("Username Failed", err)
 		http.Error(w, "Invalid Credentials", 401)
 		return
 	}
@@ -135,24 +140,31 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 
 	if user.IsActive == false {
 		http.Error(w, "Account Deactivated", 403)
+		return
 	}
 
-	pw_valid, _ := utils.VerifyPassword(user.PasswordHash, u.Password)
+	pw_valid, err := utils.VerifyPassword(user.PasswordHash, u.Password)
+	if err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, "Credential Validation Error", 500)
+		return
+	}
 	if !pw_valid {
-		fmt.Println("Invalid Password")
 		http.Error(w, "Invalid Credentials", 401)
 		return
 	}
+
 	newSessionId, err := db.DbService().NewUserSession(user.Id)
 	if err != nil {
 		http.Error(w, "New Session Error", 500)
 		return
 	}
+
 	userClaims := utils.TokenClaims{
 		User_id:  user.Id,
 		Username: user.Username,
 		Is_staff: user.IsStaff,
-		IAT:      time.Now().Add(time.Minute * 15),
+		IAT:      time.Now().UTC().Add(time.Minute * 15),
 	}
 	accessToken, err := utils.GenerateAccessToken(&userClaims)
 	if err != nil {
@@ -163,6 +175,11 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 		RefreshToken: newSessionId,
 	}
 	// JWT Needed Here
-	WriteJSON(w, userTokens)
-	w.WriteHeader(201)
+	WriteJSON(w, userTokens, 201)
+}
+
+func checkJwt(w http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value("user").(*utils.TokenClaims)
+	fmt.Println(user.Username)
+	w.WriteHeader(200)
 }

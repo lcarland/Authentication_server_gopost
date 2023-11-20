@@ -119,6 +119,10 @@ func updateConstructor(table string, val string, selector string) string {
 	return fmt.Sprintf("UPDATE %s SET %s WHERE %s", table, val, selector)
 }
 
+func deleteConstructor(table string, selector string) string {
+	return fmt.Sprintf("DELETE FROM %s WHERE %s;", table, selector)
+}
+
 var userPrivate string = "id, username, first_name, last_name, email, " +
 	"phone, country, is_superuser, is_staff, is_active, date_joined, " +
 	"last_login"
@@ -144,7 +148,7 @@ type UserAuth struct {
 	IsSuperuser  bool   `db:"is_superuser"`
 	IsStaff      bool   `db:"is_staff"`
 	IsActive     bool   `db:"is_active"`
-	SessionId    string `db:"session_id"`
+	SessionId    any    `db:"session_id"`
 }
 
 func (db *Db) SelectUserAuth(username string) (*UserAuth, error) {
@@ -155,6 +159,7 @@ func (db *Db) SelectUserAuth(username string) (*UserAuth, error) {
 	if err != nil {
 		return nil, err
 	}
+	println(s.PasswordHash)
 	return &s, nil
 }
 
@@ -203,6 +208,15 @@ func (db *Db) NewUserHashById(id int, password string) error {
 	hash := utils.GetPasswordHash(password)
 	val := fmt.Sprintf("passwordHash = %s", hash)
 	query := updateConstructor("users", val, "id = $1")
+	_, err := db.Exec(context.Background(), query, id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (db *Db) DeleteUser(id int) error {
+	query := deleteConstructor("users", "id = $1")
 	_, err := db.Exec(context.Background(), query, id)
 	if err != nil {
 		return err
