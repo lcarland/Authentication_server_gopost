@@ -164,7 +164,7 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 		User_id:  user.Id,
 		Username: user.Username,
 		Is_staff: user.IsStaff,
-		IAT:      time.Now().UTC().Add(time.Minute * 15),
+		Exp:      time.Now().UTC().Add(time.Minute * 15),
 	}
 	accessToken, err := utils.GenerateAccessToken(&userClaims)
 	if err != nil {

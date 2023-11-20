@@ -92,7 +92,7 @@ type TokenClaims struct {
 	User_id  int       `json:"id"`
 	Username string    `json:"username"`
 	Is_staff bool      `json:"is_staff"`
-	IAT      time.Time `json:"iat"`
+	Exp      time.Time `json:"exp"`
 }
 
 func base64Encode(src []byte) string {
@@ -137,9 +137,8 @@ func ValidateAccessToken(jwt string) (*TokenClaims, error) {
 	payloadDec, _ := base64.RawStdEncoding.DecodeString(token[1])
 	json.Unmarshal(payloadDec, &payload)
 
-	if payload.IAT.Before(time.Now().UTC()) {
+	if payload.Exp.Before(time.Now().UTC()) {
 		return nil, fmt.Errorf("expired")
 	}
-
 	return &payload, nil
 }
