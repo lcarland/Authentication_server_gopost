@@ -1,14 +1,17 @@
 package utils
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/scrypt"
 )
 
@@ -76,41 +79,59 @@ func GetPasswordHash(plainTxtPW string) string {
 	return base64.StdEncoding.EncodeToString(hash)
 }
 
+var jwtHeader map[string]string = map[string]string{
+	"alg": "HS256",
+	"typ": "JWT",
+}
+
 type TokenClaims struct {
-	user_id  int
-	username string
-	is_staff bool
-	IAT      time.Time
+	User_id  int       `json:"id"`
+	Username string    `json:"username"`
+	Is_staff bool      `json:"is_staff"`
+	IAT      time.Time `json:"iat"`
 }
 
-func GenerateAccessToken(id int, username string, is_staff bool) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id":  id,
-		"username": username,
-		"is_staff": is_staff,
-		"IAT":      time.Now().Add(time.Minute * 15),
-	})
-	signedToken, err := token.SignedString(SECRET)
-	if err != nil {
-		return "", err
-	}
-
-	return signedToken, nil
+func base64Encode(src []byte) string {
+	return strings.TrimRight(base64.URLEncoding.EncodeToString(src), "=")
 }
 
-func ValidateToken(tokenString string) (jwt.MapClaims, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return SECRET, nil
-	})
-	if err != nil {
-		return nil, err
+func GenerateAccessToken(claims *TokenClaims) (string, error) {
+	headerJSON, _ := json.Marshal(jwtHeader)
+	payloadJSON, _ := json.Marshal(claims)
+	headerEnc := base64Encode(headerJSON)
+	payloadEnc := base64Encode(payloadJSON)
+	head_payload := fmt.Sprintf("%s.%s", headerEnc, payloadEnc)
+
+	mac := hmac.New(sha256.New, SECRET)
+	mac.Write([]byte(head_payload))
+	signer := base64Encode(mac.Sum(nil))
+	return fmt.Sprintf("%s.%s", head_payload, signer), nil
+}
+
+func ValidateAccessToken(jwt string) (*TokenClaims, error) {
+	var header map[string]string
+	var payload TokenClaims
+
+	token := strings.Split(jwt, ".")
+	signer, _ := base64.RawStdEncoding.DecodeString(token[2])
+
+	head_payload := fmt.Sprintf("%s.%s", token[0], token[1])
+	mac := hmac.New(sha256.New, SECRET)
+	mac.Write([]byte(head_payload))
+
+	verified := hmac.Equal(mac.Sum(nil), signer)
+	if !verified {
+		return nil, fmt.Errorf("Signature does not match")
 	}
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return nil, fmt.Errorf("Invalid Claims")
+
+	headerDec, _ := base64.RawStdEncoding.DecodeString(token[0])
+	json.Unmarshal(headerDec, &header)
+	if header["alg"] != jwtHeader["alg"] {
+		return nil, fmt.Errorf("Invalid Algorithm")
 	}
-	return claims, nil
+
+	payloadDec, _ := base64.RawStdEncoding.DecodeString(token[1])
+	json.Unmarshal(payloadDec, &payload)
+
+	return &payload, nil
 }

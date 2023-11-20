@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -132,6 +133,10 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if user.IsActive == false {
+		http.Error(w, "Account Deactivated", 403)
+	}
+
 	pw_valid, _ := utils.VerifyPassword(user.PasswordHash, u.Password)
 	if !pw_valid {
 		fmt.Println("Invalid Password")
@@ -143,8 +148,13 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "New Session Error", 500)
 		return
 	}
-	fmt.Println(user)
-	accessToken, err := utils.GenerateAccessToken(user.Id, user.Username, user.IsStaff)
+	userClaims := utils.TokenClaims{
+		User_id:  user.Id,
+		Username: user.Username,
+		Is_staff: user.IsStaff,
+		IAT:      time.Now().Add(time.Minute * 15),
+	}
+	accessToken, err := utils.GenerateAccessToken(&userClaims)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 	}
