@@ -38,6 +38,33 @@ func main() {
 	http.ListenAndServe(port, r)
 }
 
+func apiRoutes(r chi.Router) {
+	r.Get("/", index)
+	r.Route("/{country}", func(r chi.Router) {
+		r.Use(CountryCtx)
+		r.Get("/", getCountry)
+	})
+	r.Route("/register", func(r chi.Router) {
+		r.Use(VerifyTypeJSON)
+		r.Post("/", createUser)
+	})
+	r.Route("/remove_user", func(r chi.Router) {
+		r.Use()
+	})
+	r.Route("/login", func(r chi.Router) {
+		r.Use(VerifyTypeJSON)
+		r.Post("/", loginUser)
+	})
+	r.Route("/refresh", func(r chi.Router) {
+		r.Use(VerifyTypeJSON)
+		r.Post("/", RefreshAccess)
+	})
+	r.Route("/checkjwt", func(r chi.Router) {
+		r.Use(TokenRequired)
+		r.Get("/", checkJwt)
+	})
+}
+
 var mediaTypes = map[string]string{
 	"JSON": "application/json",
 	"text": "text/html",

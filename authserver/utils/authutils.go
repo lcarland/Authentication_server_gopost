@@ -17,7 +17,7 @@ import (
 
 var SECRET []byte = []byte(os.Getenv("SECRET_KEY"))
 
-// generate crypto random for Session ID as well PW Salt.
+// generate crypto random for tokens and PW Salt.
 func randomCryptoBytes() ([]byte, error) {
 	bytes := make([]byte, 16)
 	_, err := rand.Read(bytes)
@@ -27,7 +27,7 @@ func randomCryptoBytes() ([]byte, error) {
 	return bytes, nil
 }
 
-// For session_id use
+// Cryptographic string for token use.
 func GenerateCryptoString() (string, error) {
 	bytes, err := randomCryptoBytes()
 	if err != nil {
@@ -99,6 +99,7 @@ func base64Encode(src []byte) string {
 	return strings.TrimRight(base64.URLEncoding.EncodeToString(src), "=")
 }
 
+// Generate new Access JWT Token
 func GenerateAccessToken(claims *TokenClaims) (string, error) {
 	headerJSON, _ := json.Marshal(jwtHeader)
 	payloadJSON, _ := json.Marshal(claims)
@@ -112,6 +113,9 @@ func GenerateAccessToken(claims *TokenClaims) (string, error) {
 	return fmt.Sprintf("%s.%s", head_payload, signer), nil
 }
 
+// Verify JWT
+// Returns Payload if no errors while decoding and signature matches
+// Returns 'Expired' Error if expired
 func ValidateAccessToken(jwt string) (*TokenClaims, error) {
 	var header map[string]string
 	var payload TokenClaims
@@ -138,7 +142,8 @@ func ValidateAccessToken(jwt string) (*TokenClaims, error) {
 	json.Unmarshal(payloadDec, &payload)
 
 	if payload.Exp.Before(time.Now().UTC()) {
-		return nil, fmt.Errorf("expired")
+		return &TokenClaims{}, fmt.Errorf("expired")
 	}
+
 	return &payload, nil
 }

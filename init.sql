@@ -34,6 +34,15 @@ CREATE TABLE users (
     FOREIGN KEY (country) REFERENCES countries(code)
 );
 
+CREATE TABLE sessions (
+    token VARCHAR PRIMARY KEY,
+    user_id INT NOT NULL,
+    date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    valid BOOLEAN DEFAULT TRUE NOT NULL,
+
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
 INSERT INTO countries ( code, country, dialcode ) VALUES
 ('XX', 'No Country Specified', ''),
 ('US', 'United States', '+1'),

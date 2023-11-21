@@ -14,33 +14,6 @@ import (
 	. "authapi/utils"
 )
 
-// routes at 2/
-func apiRoutes(r chi.Router) {
-	r.Get("/", index)
-	r.Route("/{country}", func(r chi.Router) {
-		r.Use(CountryCtx)
-		r.Get("/", getCountry)
-	})
-	r.Route("/register", func(r chi.Router) {
-		r.Use(VerifyTypeJSON)
-		r.Post("/", createUser)
-	})
-	r.Route("/remove_user", func(r chi.Router) {
-		r.Use()
-	})
-	r.Route("/login", func(r chi.Router) {
-		r.Use(VerifyTypeJSON)
-		r.Post("/", loginUser)
-	})
-	r.Route("/refresh", func(r chi.Router) {
-		r.Use(VerifyTypeJSON)
-	})
-	r.Route("/checkjwt", func(r chi.Router) {
-		r.Use(TokenVerify)
-		r.Get("/", checkJwt)
-	})
-}
-
 func index(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("country")
 	var result interface{}
@@ -104,14 +77,22 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(201)
 }
 
+// request JSON for login
 type userCreds struct {
 	Username string
 	Password string
 }
 
+// Response with both tokens.
+// For login and token refreshing.
 type tokenResponse struct {
 	AccessToken  string
 	RefreshToken string
+}
+
+// request JSON with refresh token
+type refreshToken struct {
+	Token string `json:"refresh_token"`
 }
 
 func loginUser(w http.ResponseWriter, r *http.Request) {
@@ -138,11 +119,6 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if user.IsActive == false {
-		http.Error(w, "Account Deactivated", 403)
-		return
-	}
-
 	pw_valid, err := utils.VerifyPassword(user.PasswordHash, u.Password)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -153,8 +129,70 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid Credentials", 401)
 		return
 	}
+	// handler extension
+	newAccess(w, user)
+}
 
-	newSessionId, err := db.DbService().NewUserSession(user.Id)
+func RefreshAccess(w http.ResponseWriter, r *http.Request) {
+	claims, err := TokenVerify(r)
+	if err != nil {
+		if err.Error() != "expired" {
+			http.Error(w, "Invalid Token, please login or check headers", 401)
+			return
+		}
+	}
+
+	user, err := db.DbService().SelectUserAuth(claims.Username)
+	if err != nil {
+		http.Error(w, "Error finding User", 500)
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+
+	var refresh refreshToken
+	err = dec.Decode(&refresh)
+	if err != nil {
+		http.Error(w, err.Error(), 422)
+		return
+	}
+	valid, err := db.DbService().QueryToken(refresh.Token, claims.User_id)
+	if err != nil {
+		http.Error(w, err.Error(), 401)
+		return
+	}
+	if !valid {
+		db.DbService().InvalidateAllSessions(claims.User_id)
+		http.Error(w, "Login Required", 401)
+		return
+	}
+	db.DbService().InvalidateSession(refresh.Token)
+
+	// extension
+	newAccess(w, user)
+}
+
+func checkJwt(w http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value("user").(*utils.TokenClaims)
+	fmt.Println(user.Username)
+	w.WriteHeader(200)
+}
+
+//==============================//
+// ---- Handler Extensions ---- //
+//==============================//
+
+// Extends login and refresh routes due to shared functionality
+func newAccess(w http.ResponseWriter, user *db.UserAuth) {
+	if user.IsActive == false {
+		http.Error(w, "Account Deactivated", 403)
+		return
+	}
+	newToken, _ := utils.GenerateCryptoString()
+
+	err := db.DbService().NewUserSession(user.Id, newToken)
 	if err != nil {
 		http.Error(w, "New Session Error", 500)
 		return
@@ -172,14 +210,7 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 	}
 	userTokens := tokenResponse{
 		AccessToken:  accessToken,
-		RefreshToken: newSessionId,
+		RefreshToken: newToken,
 	}
-	// JWT Needed Here
 	WriteJSON(w, userTokens, 201)
-}
-
-func checkJwt(w http.ResponseWriter, r *http.Request) {
-	user := r.Context().Value("user").(*utils.TokenClaims)
-	fmt.Println(user.Username)
-	w.WriteHeader(200)
 }

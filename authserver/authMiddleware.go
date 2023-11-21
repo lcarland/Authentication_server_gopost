@@ -4,6 +4,7 @@ import (
 	"authapi/db"
 	"authapi/utils"
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 )
@@ -14,33 +15,42 @@ func template(next http.Handler) http.Handler {
 	})
 }
 
-func TokenVerify(next http.Handler) http.Handler {
+func TokenRequired(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeaderString := r.Header.Get("Authorization")
-
-		if authHeaderString == "" {
-			http.Error(w, "Authorization header is required", 401)
-			return
-		}
-
-		headerVal := strings.Split(strings.TrimSpace(authHeaderString), " ")
-		if len(headerVal) != 2 || headerVal[0] != "Bearer" {
-			http.Error(w, "Invalid Authorization Method", 401)
-			return
-		}
-
-		tokenClaims, err := utils.ValidateAccessToken(headerVal[1])
+		tokenClaims, err := TokenVerify(r)
 		if err != nil {
-			if err.Error() == "expired" {
-				http.Error(w, "Token Expired", 401)
+			errtxt := err.Error()
+			if errtxt == "header missing" || errtxt == "invalid" {
+				http.Error(w, errtxt, 400)
+			} else if errtxt == "expired" {
+				http.Error(w, errtxt, 401)
 			} else {
-				http.Error(w, err.Error(), 401)
-				return
+				http.Error(w, err.Error(), 500)
 			}
+			return
 		}
 		ctx := context.WithValue(r.Context(), "user", tokenClaims)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func TokenVerify(r *http.Request) (*utils.TokenClaims, error) {
+	authHeaderString := r.Header.Get("Authorization")
+
+	if authHeaderString == "" {
+		return nil, fmt.Errorf("header missing")
+	}
+
+	headerVal := strings.Split(strings.TrimSpace(authHeaderString), " ")
+	if len(headerVal) != 2 || headerVal[0] != "Bearer" {
+		return nil, fmt.Errorf("invalid")
+	}
+
+	tokenClaims, err := utils.ValidateAccessToken(headerVal[1])
+	if err != nil {
+		return tokenClaims, err
+	}
+	return tokenClaims, nil
 }
 
 // Staff and Superuser checks can be used seperate from each other, but both rely on TokenVerify first
