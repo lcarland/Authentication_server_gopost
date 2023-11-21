@@ -264,7 +264,7 @@ func (db *Db) QueryToken(token string, id int) (bool, error) {
 
 // invalidate the old refresh token after it has been used
 func (db *Db) InvalidateSession(token string) error {
-	query := updateConstructor("sessions", "false", "token = $1")
+	query := updateConstructor("sessions", "valid = FALSE", "token = $1")
 	_, err := db.Exec(context.Background(), query, token)
 	if err != nil {
 		fmt.Println(err)
