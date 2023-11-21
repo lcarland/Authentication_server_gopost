@@ -7,8 +7,6 @@ store = {
     "refresh": ""
 }
 
-def fail():
-    store["FAILED"] += 1
 
 def login():
     content = {
@@ -39,7 +37,29 @@ def testToken():
         return
 
 
+def refreshToken():
+    headers = {
+        'Authorization': f'Bearer {store["access"]}'
+    }
+    body = {"refresh_token": f"{store['refresh']}"}
+
+    res = requests.post(f"{URL}/refresh", headers=headers, json=body)
+    try:
+        assert res.status_code == 201
+        data = res.json()
+        store["access"] = data["AccessToken"]
+        store["refresh"] = data["RefreshToken"]
+    except:
+        print(f"Refresh Test Failed: {res.text}")
+        return
+
+
 if __name__ == "__main__":
     login()
     testToken()
+
+    refreshToken()
+    testToken()
+
+    print('\ntests complete')
 

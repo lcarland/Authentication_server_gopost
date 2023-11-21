@@ -11,7 +11,6 @@ import (
 
 	"authapi/db"
 	"authapi/utils"
-	. "authapi/utils"
 )
 
 func index(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +31,7 @@ func index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Println(result)
-	WriteJSON(w, result, 200)
+	utils.WriteJSON(w, result, 200)
 }
 
 func CountryCtx(next http.Handler) http.Handler {
@@ -51,7 +50,7 @@ func CountryCtx(next http.Handler) http.Handler {
 func getCountry(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	country := ctx.Value("country").(*db.Country)
-	WriteJSON(w, country, 200)
+	utils.WriteJSON(w, country, 200)
 }
 
 func createUser(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +63,7 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 	var u db.NewUser
 	err := dec.Decode(&u)
 	if err != nil {
-		http.Error(w, err.Error(), 422)
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -104,29 +103,29 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 	var u userCreds
 	err := dec.Decode(&u)
 	if err != nil {
-		http.Error(w, err.Error(), 422)
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 	user, err := db.DbService().SelectUserAuth(u.Username)
 	if err != nil {
 		fmt.Println("Username Failed", err)
-		http.Error(w, "Invalid Credentials", 401)
+		http.Error(w, "Invalid Credentials", http.StatusUnauthorized)
 		return
 	}
 
 	if user.PasswordHash == "" {
-		http.Error(w, "Password Change Needed", 409)
+		http.Error(w, "Password Change Needed", http.StatusConflict)
 		return
 	}
 
 	pw_valid, err := utils.VerifyPassword(user.PasswordHash, u.Password)
 	if err != nil {
 		fmt.Println(err.Error())
-		http.Error(w, "Credential Validation Error", 500)
+		http.Error(w, "Credential Validation Error", http.StatusInternalServerError)
 		return
 	}
 	if !pw_valid {
-		http.Error(w, "Invalid Credentials", 401)
+		http.Error(w, "Invalid Credentials", http.StatusUnauthorized)
 		return
 	}
 	// handler extension
@@ -137,7 +136,7 @@ func RefreshAccess(w http.ResponseWriter, r *http.Request) {
 	claims, err := TokenVerify(r)
 	if err != nil {
 		if err.Error() != "expired" {
-			http.Error(w, "Invalid Token, please login or check headers", 401)
+			http.Error(w, "Invalid Token, please login or check headers", http.StatusUnauthorized)
 			return
 		}
 	}
@@ -155,20 +154,24 @@ func RefreshAccess(w http.ResponseWriter, r *http.Request) {
 	var refresh refreshToken
 	err = dec.Decode(&refresh)
 	if err != nil {
-		http.Error(w, err.Error(), 422)
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 	valid, err := db.DbService().QueryToken(refresh.Token, claims.User_id)
 	if err != nil {
-		http.Error(w, err.Error(), 401)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 	if !valid {
 		db.DbService().InvalidateAllSessions(claims.User_id)
-		http.Error(w, "Login Required", 401)
+		http.Error(w, "Login Required", http.StatusUnauthorized)
 		return
 	}
-	db.DbService().InvalidateSession(refresh.Token)
+	err = db.DbService().InvalidateSession(refresh.Token)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
 
 	// extension
 	newAccess(w, user)
@@ -186,8 +189,8 @@ func checkJwt(w http.ResponseWriter, r *http.Request) {
 
 // Extends login and refresh routes due to shared functionality
 func newAccess(w http.ResponseWriter, user *db.UserAuth) {
-	if user.IsActive == false {
-		http.Error(w, "Account Deactivated", 403)
+	if !user.IsActive {
+		http.Error(w, "Account Deactivated", http.StatusForbidden)
 		return
 	}
 	newToken, _ := utils.GenerateCryptoString()
@@ -212,5 +215,5 @@ func newAccess(w http.ResponseWriter, user *db.UserAuth) {
 		AccessToken:  accessToken,
 		RefreshToken: newToken,
 	}
-	WriteJSON(w, userTokens, 201)
+	utils.WriteJSON(w, userTokens, 201)
 }
