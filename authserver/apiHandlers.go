@@ -183,6 +183,16 @@ func checkJwt(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 }
 
+func deleteAllUsers(w http.ResponseWriter, r *http.Request) {
+	err := db.DbService().DeleteAllUsers()
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		fmt.Println(err)
+		return
+	}
+	w.WriteHeader(200)
+}
+
 //==============================//
 // ---- Handler Extensions ---- //
 //==============================//

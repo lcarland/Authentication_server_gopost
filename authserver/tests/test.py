@@ -1,4 +1,3 @@
-from doctest import register_optionflag
 import requests
 import sys
 
@@ -103,9 +102,34 @@ def refreshDoubleUse():
         sys.exit(1)
 
 
+def clean_db():
+    res = requests.delete(f"{URL}/cleanusers")
+    print(f"{res.status_code} {res.text}")
+
 
 if __name__ == "__main__":
-    register()
+    arg = sys.argv
+    if len(arg) > 1:
+            if arg[1] == '-r':
+                register()
+            elif arg[1] == '-c':
+                clean_db()
+                sys.exit(0)
+            elif arg[1] == '-h':
+                helpstr = """
+Help:
+
+Useage:
+    -h help - prints this help text
+    -r register user
+    -c delete user entries
+    none - perform the other tests
+                """ 
+                print(helpstr)
+                sys.exit(0)
+            else:
+                print("invalid option: use -h for help")
+                sys.exit(0)
 
     login()
     testToken()

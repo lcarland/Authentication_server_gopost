@@ -285,3 +285,14 @@ func (db *Db) InvalidateAllSessions(id int) error {
 	}
 	return nil
 }
+
+// Only for testing purposes. Need to disable for production use, dynamically or manually
+func (db *Db) DeleteAllUsers() error {
+	query := "DELETE FROM users;"
+	_, err := db.Exec(context.Background(), query)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	return nil
+}

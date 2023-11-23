@@ -63,6 +63,7 @@ func apiRoutes(r chi.Router) {
 		r.Use(TokenRequired)
 		r.Get("/", checkJwt)
 	})
+	r.Delete("/cleanusers", deleteAllUsers)
 }
 
 var mediaTypes = map[string]string{
