@@ -116,7 +116,7 @@ var userPrivate string = "id, username, first_name, last_name, email, " +
 	"phone, country, is_superuser, is_staff, is_active, date_joined, " +
 	"last_login"
 
-var userPublic string = "id, username, email, country, is_active, date_joined"
+var userPublic string = "id, username, country, is_active, date_joined"
 
 //=================================//
 // ---- User Table Management ---- //
@@ -137,7 +137,8 @@ type User struct {
 	LastLogin  time.Time `db:"last_login"`
 }
 
-func (db *Db) SelectUserById(id int) (*User, error) {
+// Get user private info. Protect for each user
+func (db *Db) SelectPrivateUserById(id int) (*User, error) {
 	query := queryConstructor("users", userPrivate, "id = $1")
 
 	rows, _ := db.Query(context.Background(), query, id)
@@ -145,6 +146,26 @@ func (db *Db) SelectUserById(id int) (*User, error) {
 	if err != nil {
 		fmt.Println("DB SELECT Error:", err)
 		return nil, err
+	}
+	return &u, nil
+}
+
+type UserPublic struct {
+	Id         int       `db:"id"`
+	Username   string    `db:"username"`
+	Country    string    `db:"country"`
+	DateJoined time.Time `db:"date_joined"`
+	IsActive   bool      `db:"is_active"`
+}
+
+// Public Info about a user
+func (db *Db) SelectPublicUser(id int) (*UserPublic, error) {
+	query := queryConstructor("users", userPublic, "id = $1")
+	rows, _ := db.Query(context.Background(), query, id)
+	u, err := pgx.CollectExactlyOneRow[UserPublic](rows, pgx.RowToStructByName[UserPublic])
+	if err == nil {
+		fmt.Println("DB SEL Err", err)
+		return &UserPublic{}, err
 	}
 	return &u, nil
 }

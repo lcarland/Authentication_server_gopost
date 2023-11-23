@@ -51,8 +51,17 @@ def testToken():
     res = requests.get(f"{URL}/checkjwt", headers=headers)
     try:
         assert res.status_code == 200
-    except:
+    except AssertionError:
         print(f"Token test faild: {res.text}")
+        sys.exit(1)
+
+
+def testNoToken():
+    res = requests.get(f"{URL}/checkjwt")
+    try:
+        assert res.status_code == 400
+    except AssertionError:
+        print(f"No Token in Header test fail. {res.text}")
         sys.exit(1)
 
 
@@ -133,6 +142,7 @@ Useage:
 
     login()
     testToken()
+    testNoToken()
 
     refreshToken()
     testToken()

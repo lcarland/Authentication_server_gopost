@@ -39,25 +39,39 @@ func main() {
 }
 
 func apiRoutes(r chi.Router) {
-	r.Get("/", index)
-	r.Route("/{country}", func(r chi.Router) {
-		r.Use(CountryCtx)
-		r.Get("/", getCountry)
+	r.Route("/", func(r chi.Router) {
+		r.Route("/{country}", func(r chi.Router) {
+			r.Use(CountryCtx)
+			r.Get("/", getCountry)
+		})
+		r.Get("/", index)
 	})
-	r.Route("/register", func(r chi.Router) {
+	r.Route("/user", func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(VerifyTypeJSON)
+			r.Post("/", createUser)
+		})
+		r.Route("/{user_id}", func(r chi.Router) {
+			r.Use(TokenRequired)
+			r.Get("/", getUserInfo)
+
+			r.Group(func(r chi.Router) {
+				r.Use(VerifyTypeJSON)
+				r.Use(validateUserCreds)
+				//r.Patch("/", modifyUser)
+				r.Delete("/", deleteUserAccount)
+			})
+		})
+	})
+	r.Route("/session", func(r chi.Router) {
 		r.Use(VerifyTypeJSON)
-		r.Post("/", createUser)
-	})
-	r.Route("/remove_user", func(r chi.Router) {
-		r.Use()
-	})
-	r.Route("/login", func(r chi.Router) {
-		r.Use(VerifyTypeJSON)
-		r.Post("/", loginUser)
-	})
-	r.Route("/refresh", func(r chi.Router) {
-		r.Use(VerifyTypeJSON)
-		r.Post("/", RefreshAccess)
+		r.Use(TokenRequired)
+		r.Group(func(r chi.Router) {
+			r.Use(validateUserCreds)
+			r.Post("/", loginUser)
+		})
+		r.Post("/refresh", RefreshAccess)
+		//r.Delete("/", logOutUser)
 	})
 	r.Route("/checkjwt", func(r chi.Router) {
 		r.Use(TokenRequired)

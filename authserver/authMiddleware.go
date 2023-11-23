@@ -4,6 +4,7 @@ import (
 	"authapi/db"
 	"authapi/utils"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -23,7 +24,7 @@ func TokenRequired(next http.Handler) http.Handler {
 			if errtxt == "header missing" || errtxt == "invalid" {
 				http.Error(w, errtxt, 400)
 			} else if errtxt == "expired" {
-				http.Error(w, errtxt, 401)
+				http.Error(w, errtxt, http.StatusUnauthorized)
 			} else {
 				http.Error(w, err.Error(), 500)
 			}
@@ -60,7 +61,7 @@ func StaffRequired(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userClaim := r.Context().Value("user").(*utils.TokenClaims)
 		if !userClaim.Is_staff {
-			http.Error(w, "Access Forbidden", 403)
+			http.Error(w, "Access Forbidden", http.StatusForbidden)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -74,9 +75,50 @@ func SuperUserVerify(next http.Handler) http.Handler {
 		userClaim := r.Context().Value("user").(*utils.TokenClaims)
 		user, _ := db.DbService().SelectUserAuth(userClaim.Username)
 		if !user.IsActive || !user.IsSuperuser {
-			http.Error(w, "Not Authorized", 403)
+			http.Error(w, "Not Authorized", http.StatusForbidden)
 			return
 		}
 		next.ServeHTTP(w, r)
+	})
+}
+
+// Username and Login handler for Logining in user and deleting user
+func validateUserCreds(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, 1048576)
+
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
+
+		var u userCreds
+		err := dec.Decode(&u)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		user, err := db.DbService().SelectUserAuth(u.Username)
+		if err != nil {
+			fmt.Println("Username Failed", err)
+			http.Error(w, "Invalid Credentials", http.StatusUnauthorized)
+			return
+		}
+
+		if user.PasswordHash == "" {
+			http.Error(w, "Password Change Needed", http.StatusConflict)
+			return
+		}
+
+		pw_valid, err := utils.VerifyPassword(user.PasswordHash, u.Password)
+		if err != nil {
+			fmt.Println(err.Error())
+			http.Error(w, "Credential Validation Error", http.StatusInternalServerError)
+			return
+		}
+		if !pw_valid {
+			http.Error(w, "Invalid Credentials", http.StatusUnauthorized)
+			return
+		}
+		ctx := context.WithValue(r.Context(), "user", user)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

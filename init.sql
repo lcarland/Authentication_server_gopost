@@ -40,7 +40,7 @@ CREATE TABLE sessions (
     date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     valid BOOLEAN DEFAULT TRUE NOT NULL,
 
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 INSERT INTO countries ( code, country, dialcode ) VALUES

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -76,7 +77,32 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(201)
 }
 
-// request JSON for login
+// Get user info. Private info given if requested user is self or staff
+func getUserInfo(w http.ResponseWriter, r *http.Request) {
+	var userInfo any
+	var err error
+
+	user := r.Context().Value("user").(*utils.TokenClaims)
+	userRequested, err := strconv.Atoi(chi.URLParam(r, "user_id"))
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	if user.User_id == userRequested || user.Is_staff {
+		userInfo, err = db.DbService().SelectPrivateUserById(user.User_id)
+	} else {
+		userInfo, err = db.DbService().SelectPublicUser(userRequested)
+	}
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	utils.WriteJSON(w, userInfo, 200)
+}
+
+// request JSON for login and account delete
 type userCreds struct {
 	Username string
 	Password string
@@ -94,41 +120,9 @@ type refreshToken struct {
 	Token string `json:"refresh_token"`
 }
 
+// main login handler, requires validateUserCreds middleware
 func loginUser(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
-
-	dec := json.NewDecoder(r.Body)
-	dec.DisallowUnknownFields()
-
-	var u userCreds
-	err := dec.Decode(&u)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
-		return
-	}
-	user, err := db.DbService().SelectUserAuth(u.Username)
-	if err != nil {
-		fmt.Println("Username Failed", err)
-		http.Error(w, "Invalid Credentials", http.StatusUnauthorized)
-		return
-	}
-
-	if user.PasswordHash == "" {
-		http.Error(w, "Password Change Needed", http.StatusConflict)
-		return
-	}
-
-	pw_valid, err := utils.VerifyPassword(user.PasswordHash, u.Password)
-	if err != nil {
-		fmt.Println(err.Error())
-		http.Error(w, "Credential Validation Error", http.StatusInternalServerError)
-		return
-	}
-	if !pw_valid {
-		http.Error(w, "Invalid Credentials", http.StatusUnauthorized)
-		return
-	}
-	// handler extension
+	user := r.Context().Value("user").(*db.UserAuth)
 	newAccess(w, user)
 }
 
@@ -177,12 +171,25 @@ func RefreshAccess(w http.ResponseWriter, r *http.Request) {
 	newAccess(w, user)
 }
 
+// permanently delete user. ValidateUserCreds required
+func deleteUserAccount(w http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value("user").(*db.UserAuth)
+	err := db.DbService().DeleteUser(user.Id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// JWT test endpoint
 func checkJwt(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value("user").(*utils.TokenClaims)
 	fmt.Println(user.Username)
 	w.WriteHeader(200)
 }
 
+// DANGER. Find an alternative and remove
 func deleteAllUsers(w http.ResponseWriter, r *http.Request) {
 	err := db.DbService().DeleteAllUsers()
 	if err != nil {
