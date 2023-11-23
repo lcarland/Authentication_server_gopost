@@ -1,3 +1,4 @@
+from doctest import register_optionflag
 import requests
 import sys
 
@@ -8,6 +9,23 @@ store = {
     "refresh": "",
     "old_refresh": ""
 }
+
+
+def register():
+    content = {
+        "Username": "johndoe",
+        "Password": "12345",
+        "Firstname" : "John",
+        "Lastname" : "Doe",
+        "Email": "jogn.doe@example.com",
+        "Country": "US"
+    }
+    res = requests.post(f"{URL}/register", json=content)
+    try:
+        assert res.status_code == 201
+    except AssertionError:
+        print(f"Register Failed: {res.text}")
+        sys.exit(1)
 
 
 def login():
@@ -87,6 +105,8 @@ def refreshDoubleUse():
 
 
 if __name__ == "__main__":
+    register()
+
     login()
     testToken()
 
