@@ -54,11 +54,11 @@ func apiRoutes(r chi.Router) {
 		r.Route("/{user_id}", func(r chi.Router) {
 			r.Use(TokenRequired)
 			r.Get("/", getUserInfo)
+			r.Patch("/", modifyUser)
 
 			r.Group(func(r chi.Router) {
 				r.Use(VerifyTypeJSON)
 				r.Use(validateUserCreds)
-				//r.Patch("/", modifyUser)
 				r.Delete("/", deleteUserAccount)
 			})
 		})

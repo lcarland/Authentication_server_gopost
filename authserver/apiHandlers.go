@@ -199,7 +199,7 @@ type UserMod struct {
 	IsSuper, IsStaff bool
 }
 
-func modifyUser(w http.ResponseWriter, r http.Request) {
+func modifyUser(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value("user").(*utils.TokenClaims)
 
 	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
@@ -217,7 +217,16 @@ func modifyUser(w http.ResponseWriter, r http.Request) {
 		http.Error(w, "You cannot change another user's info", http.StatusForbidden)
 		return
 	}
-
+	// serialize struct into json, and deserialize into map
+	var um map[string]interface{}
+	us, _ := json.Marshal(&u)
+	_ = json.Unmarshal(us, &um)
+	err2 := db.DbService().UpdateUserProfile(user.User_id, um)
+	if err2 != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 // permanently delete user. ValidateUserCreds required

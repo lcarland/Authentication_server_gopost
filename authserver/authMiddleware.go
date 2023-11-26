@@ -10,12 +10,6 @@ import (
 	"strings"
 )
 
-func template(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-	})
-}
-
 func TokenRequired(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tokenClaims, err := TokenVerify(r)

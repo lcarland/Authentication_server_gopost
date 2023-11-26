@@ -111,6 +111,14 @@ def refreshDoubleUse():
         sys.exit(1)
 
 
+def update_profile():
+    content = {
+        "email": "johndoe@newemail.com"
+    }
+    headers = {"Authorization": f"Bearer {store['access']}"}
+    res = requests.patch(f"{URL}/user/")
+
+
 def clean_db():
     res = requests.delete(f"{URL}/cleanusers")
     print(f"{res.status_code} {res.text}")
@@ -140,17 +148,23 @@ Useage:
                 print("invalid option: use -h for help")
                 sys.exit(0)
 
+    # General login test
     login()
     testToken()
     testNoToken()
 
+    # refresh test
     refreshToken()
     testToken()
 
+    # refresh with previously used token
     refreshDoubleUse() # all sessions deleted
 
+    # login after refresh double use
     login()
     refreshToken()
+
+
     
 
     print('\ntests complete')
