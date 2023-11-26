@@ -126,6 +126,28 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 	newAccess(w, user)
 }
 
+// logout user by removing the refresh token for their current client.
+// It is up to the client to delete the Access Token.
+func logoutUser(w http.ResponseWriter, r *http.Request) {
+	var refresh refreshToken
+
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+
+	err := dec.Decode(&refresh)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+	err = db.DbService().DeleteSession(refresh.Token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func RefreshAccess(w http.ResponseWriter, r *http.Request) {
 	claims, err := TokenVerify(r)
 	if err != nil {
@@ -169,6 +191,33 @@ func RefreshAccess(w http.ResponseWriter, r *http.Request) {
 
 	// extension
 	newAccess(w, user)
+}
+
+type UserMod struct {
+	Username, Password, FirstName, LastName,
+	Email, Phone, Country string
+	IsSuper, IsStaff bool
+}
+
+func modifyUser(w http.ResponseWriter, r http.Request) {
+	user := r.Context().Value("user").(*utils.TokenClaims)
+
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
+
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+
+	var u UserMod
+	err := dec.Decode(&u)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+	if u.Username != user.Username || !user.Is_staff {
+		http.Error(w, "You cannot change another user's info", http.StatusForbidden)
+		return
+	}
+
 }
 
 // permanently delete user. ValidateUserCreds required

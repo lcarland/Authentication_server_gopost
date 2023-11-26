@@ -71,7 +71,7 @@ func apiRoutes(r chi.Router) {
 			r.Post("/", loginUser)
 		})
 		r.Post("/refresh", RefreshAccess)
-		//r.Delete("/", logOutUser)
+		r.Delete("/", logoutUser)
 	})
 	r.Route("/checkjwt", func(r chi.Router) {
 		r.Use(TokenRequired)

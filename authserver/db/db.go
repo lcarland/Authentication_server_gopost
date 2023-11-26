@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
-	_ "time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -75,19 +75,18 @@ func (db *Db) GetAllCountries() (*[]Country, error) {
 type NewUser struct {
 	Username, Password, FirstName, LastName,
 	Email, Phone, Country string
-	IsSuper, IsStaff bool
 }
 
 func (db *Db) InsertUser(u NewUser) error {
 	query := "INSERT INTO users " +
 		"(username, passwordHash, first_name, last_name, email, " +
 		"phone, country, is_superuser, is_staff) VALUES " +
-		"($1, $2, $3, $4, $5, $6, $7, $8, $9);"
+		"($1, $2, $3, $4, $5, $6, $7);"
 	pwHash := utils.GetPasswordHash(u.Password)
 
 	_, err := db.Exec(context.Background(), query,
 		u.Username, pwHash, u.FirstName, u.LastName, u.Email,
-		u.Phone, u.Country, u.IsSuper, u.IsStaff,
+		u.Phone, u.Country,
 	)
 	if err != nil {
 		fmt.Println("DB INSERT Error:", err)
@@ -222,6 +221,27 @@ func (db *Db) SelectUserHash(id int) string {
 	return h.PasswordHash
 }
 
+func (db *Db) UpdateUserProfile(id int, updates map[string]any) error {
+	var updateSegment []string
+	var argNumber int = 2
+	var args []any
+	args[0] = id
+
+	for key, val := range updates {
+		setVal := fmt.Sprintf("%s = $%d", key, argNumber)
+		updateSegment = append(updateSegment, setVal)
+		args = append(args, val)
+		argNumber += 1
+	}
+	setSegment := strings.Join(updateSegment, ", ")
+	query := updateConstructor("users", setSegment, "id = $1")
+	_, err := db.Exec(context.Background(), query, args...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (db *Db) NewUserHashById(id int, password string) error {
 	hash := utils.GetPasswordHash(password)
 	val := fmt.Sprintf("passwordHash = %s", hash)
@@ -302,6 +322,16 @@ func (db *Db) InvalidateAllSessions(id int) error {
 	_, err := db.Exec(context.Background(), query, id)
 	if err != nil {
 		fmt.Println(err)
+		return err
+	}
+	return nil
+}
+
+// delete single session. Used for logging out
+func (db *Db) DeleteSession(token string) error {
+	query := deleteConstructor("sessions", "token = $1")
+	_, err := db.Exec(context.Background(), query, token)
+	if err != nil {
 		return err
 	}
 	return nil
