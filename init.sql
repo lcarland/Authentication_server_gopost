@@ -43,6 +43,7 @@ CREATE TABLE sessions (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+
 INSERT INTO countries ( code, country, dialcode ) VALUES
 ('XX', 'No Country Specified', ''),
 ('US', 'United States', '+1'),

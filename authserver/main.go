@@ -62,16 +62,23 @@ func apiRoutes(r chi.Router) {
 				r.Delete("/", deleteUserAccount)
 			})
 		})
+		r.Route("/password", func(r chi.Router) {
+			r.Use(VerifyTypeJSON)
+			r.Post("/", createPasswordToken)
+			r.Put("/", changePassword)
+		})
 	})
 	r.Route("/session", func(r chi.Router) {
 		r.Use(VerifyTypeJSON)
-		r.Use(TokenRequired)
 		r.Group(func(r chi.Router) {
 			r.Use(validateUserCreds)
 			r.Post("/", loginUser)
 		})
-		r.Post("/refresh", RefreshAccess)
-		r.Delete("/", logoutUser)
+		r.Group(func(r chi.Router) {
+			r.Use(TokenRequired)
+			r.Post("/refresh", RefreshAccess)
+			r.Delete("/", logoutUser)
+		})
 	})
 	r.Route("/checkjwt", func(r chi.Router) {
 		r.Use(TokenRequired)

@@ -80,7 +80,7 @@ type NewUser struct {
 func (db *Db) InsertUser(u NewUser) error {
 	query := "INSERT INTO users " +
 		"(username, passwordHash, first_name, last_name, email, " +
-		"phone, country, is_superuser, is_staff) VALUES " +
+		"phone, country) VALUES " +
 		"($1, $2, $3, $4, $5, $6, $7);"
 	pwHash := utils.GetPasswordHash(u.Password)
 
@@ -206,6 +206,17 @@ func (db *Db) GetUserId(username string) int {
 	return id.Id
 }
 
+func (db *Db) GetUserIdWithEmail(email string) int {
+	query := queryConstructor("users", "id", "email = $1")
+	rows, _ := db.Query(context.Background(), query, email)
+	id, err := pgx.CollectExactlyOneRow[userId](rows, pgx.RowToStructByName[userId])
+	if err != nil {
+		fmt.Println(err)
+		return 0
+	}
+	return id.Id
+}
+
 type userHash struct {
 	PasswordHash string `db:"passwordHash"`
 }
@@ -221,11 +232,12 @@ func (db *Db) SelectUserHash(id int) string {
 	return h.PasswordHash
 }
 
+// Updates user info with map. Validate map prior to calling func.
 func (db *Db) UpdateUserProfile(id int, updates map[string]any) error {
 	var updateSegment []string
 	var argNumber int = 2
 	var args []any
-	args[0] = id
+	args = append(args, id)
 
 	for key, val := range updates {
 		setVal := fmt.Sprintf("%s = $%d", key, argNumber)
@@ -253,6 +265,17 @@ func (db *Db) NewUserHashById(id int, password string) error {
 	return nil
 }
 
+func (db *Db) UpdateUserLoginTime(id int) error {
+	query := updateConstructor("users", "last_login = $2", "id = $1")
+	timeStamp := time.Now().UTC().Format(time.RFC3339)
+	_, err := db.Exec(context.Background(), query, id, timeStamp)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	return nil
+}
+
 func (db *Db) DeleteUser(id int) error {
 	query := deleteConstructor("users", "id = $1")
 	_, err := db.Exec(context.Background(), query, id)
@@ -266,9 +289,9 @@ func (db *Db) DeleteUser(id int) error {
 // ---- Session table management ---- //
 //====================================//
 
-func (db *Db) NewUserSession(id int, token string) error {
-	query := "INSERT INTO sessions (token, user_id) VALUES ($1, $2)"
-	_, err := db.Exec(context.Background(), query, token, id)
+func (db *Db) NewUserSession(id int, token string, pwReset bool) error {
+	query := "INSERT INTO sessions (token, user_id, refresh) VALUES ($1, $2)"
+	_, err := db.Exec(context.Background(), query, token, id, pwReset)
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -279,9 +302,11 @@ func (db *Db) NewUserSession(id int, token string) error {
 type sessionCheck struct {
 	Valid   bool `db:"valid"`
 	User_id int  `db:"user_id"`
+	Reset   bool `db:"reset"`
 }
 
 // session check with QueryToken func returns a bool and error.
+// pwReset is false for refresh tokens and true for password reset tokens
 // look for 3 possible outcomes:
 //  1. true, no error
 //     - user is authorized, invalidate session and refresh jwt
@@ -289,7 +314,7 @@ type sessionCheck struct {
 //     - session is assumed hijacked, delete all user tokens
 //  3. false, error( 'ErrNoRows' )
 //     - token was removed, user is asked to login again
-func (db *Db) QueryToken(token string, id int) (bool, error) {
+func (db *Db) QueryToken(token string, id int, pwReset bool) (bool, error) {
 	query := queryConstructor("sessions", "valid, user_id", "token = $1")
 	rows, _ := db.Query(context.Background(), query, token)
 	s, err := pgx.CollectExactlyOneRow[sessionCheck](rows, pgx.RowToStructByName[sessionCheck])
@@ -300,6 +325,14 @@ func (db *Db) QueryToken(token string, id int) (bool, error) {
 	if !s.Valid {
 		return false, nil
 	}
+
+	if pwReset && s.Reset {
+		// code needed for time checking
+		return true, nil
+	} else if pwReset && !s.Reset {
+		return false, nil
+	}
+	// code needed for time checking
 	return true, nil
 }
 
