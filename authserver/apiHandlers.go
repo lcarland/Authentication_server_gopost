@@ -270,7 +270,9 @@ func createPasswordToken(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Reset Token: %s", newToken)
 
 	// This should go out via email
-	w.WriteHeader(201)
+	// w.WriteHeader(201)
+	resjson := map[string]string{"reset_token": newToken}
+	utils.WriteJSON(w, resjson, 201)
 }
 
 func changePassword(w http.ResponseWriter, r *http.Request) {

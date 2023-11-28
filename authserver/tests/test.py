@@ -1,7 +1,9 @@
 import requests
 import sys
 
+
 URL = "http://localhost:3000"
+
 
 store = {
     "access": "",
@@ -203,10 +205,6 @@ def register2():
     except AssertionError:
         print(f"register2 failed: {res.text}")
         sys.exit(1)
-
-
-
-
 
 
 def clean_db():

@@ -289,8 +289,14 @@ func (db *Db) DeleteUser(id int) error {
 //====================================//
 
 func (db *Db) NewUserSession(id int, token string, pwReset bool) error {
-	query := "INSERT INTO sessions (token, user_id, reset) VALUES ($1, $2, $3)"
-	_, err := db.Exec(context.Background(), query, token, id, pwReset)
+	query := "INSERT INTO sessions (token, user_id, pw_reset, expires) VALUES ($1, $2, $3, $4)"
+	var expire time.Time
+	if pwReset {
+		expire = time.Now().UTC().Add(time.Minute * 5)
+	} else {
+		expire = time.Now().UTC().Add(time.Hour * 720) // 30 days
+	}
+	_, err := db.Exec(context.Background(), query, token, id, pwReset, expire)
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -299,10 +305,10 @@ func (db *Db) NewUserSession(id int, token string, pwReset bool) error {
 }
 
 type sessionCheck struct {
-	Valid       bool      `db:"valid"`
-	User_id     int       `db:"user_id"`
-	Reset       bool      `db:"reset"`
-	DateCreated time.Time `db:"date_created"`
+	Valid   bool      `db:"valid"`
+	User_id int       `db:"user_id"`
+	PwReset bool      `db:"pw_reset"`
+	Expires time.Time `db:"expires"`
 }
 
 // session check with QueryToken func returns a bool and error.
@@ -315,7 +321,7 @@ type sessionCheck struct {
 //  3. false, error( 'ErrNoRows' )
 //     - token was removed, user is asked to login again
 func (db *Db) QueryToken(token string, id int, pwReset bool) (bool, error) {
-	query := queryConstructor("sessions", "valid, user_id, reset, date_created", "token = $1")
+	query := queryConstructor("sessions", "valid, user_id, pw_reset, expires", "token = $1")
 	rows, _ := db.Query(context.Background(), query, token)
 	s, err := pgx.CollectExactlyOneRow[sessionCheck](rows, pgx.RowToStructByName[sessionCheck])
 	if err != nil || s.User_id != id {
@@ -323,16 +329,20 @@ func (db *Db) QueryToken(token string, id int, pwReset bool) (bool, error) {
 		return false, err
 	}
 
-	if pwReset && s.Reset {
-
-		return true, nil
-	} else if pwReset && !s.Reset {
+	if time.Now().UTC().After(s.Expires) {
 		return false, nil
 	}
+
+	if pwReset && s.PwReset {
+		return true, nil
+	} else if pwReset && !s.PwReset {
+		return false, nil
+	}
+
 	if !s.Valid {
 		return false, nil
 	}
-	// code needed for time checking
+
 	return true, nil
 }
 
