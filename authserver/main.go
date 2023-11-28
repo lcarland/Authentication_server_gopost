@@ -51,6 +51,11 @@ func apiRoutes(r chi.Router) {
 			r.Use(VerifyTypeJSON)
 			r.Post("/", createUser)
 		})
+		r.Route("/password", func(r chi.Router) {
+			r.Use(VerifyTypeJSON)
+			r.Post("/", createPasswordToken)
+			r.Put("/", changePassword)
+		})
 		r.Route("/{user_id}", func(r chi.Router) {
 			r.Use(TokenRequired)
 			r.Get("/", getUserInfo)
@@ -61,11 +66,6 @@ func apiRoutes(r chi.Router) {
 				r.Use(validateUserCreds)
 				r.Delete("/", deleteUserAccount)
 			})
-		})
-		r.Route("/password", func(r chi.Router) {
-			r.Use(VerifyTypeJSON)
-			r.Post("/", createPasswordToken)
-			r.Put("/", changePassword)
 		})
 	})
 	r.Route("/session", func(r chi.Router) {

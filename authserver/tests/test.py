@@ -7,7 +7,8 @@ store = {
     "access": "",
     "refresh": "",
     "old_refresh": "",
-    "user_url": ""
+    "user_url": "",
+    "reset": ""
 }
 
 HELPTXT = """
@@ -16,6 +17,7 @@ Help:
 Useage:
     -h help - prints this help text
     -r register user
+    -pw tests with change user password
     -c delete user entries
     none - perform the other tests
 
@@ -53,7 +55,7 @@ def register():
 def login():
     content = {
         "username": user1["Username"],
-        "password": user2["Password"]
+        "password": user1["Password"]
     }
     res = requests.post(f"{URL}/session", json=content)
     try:
@@ -112,6 +114,7 @@ def refreshDoubleUse():
     is called again to invalidate token in old_refresh. Refresh route is ran with 
     old token to delete all refresh tokens. This is checked with another refresh 
     attempt with the 'good' token, which should fail."""
+
     store["old_refresh"] = store["refresh"]
 
     refreshToken()
@@ -162,6 +165,33 @@ def update_profile():
         sys.exit(1)
 
 
+def password_reset_init():
+    content = {"email": "johndoe@newemail.com"}
+    res = requests.post(f"{URL}/user/password", json=content)
+    try:
+        assert res.status_code == 201
+        data = res.json()
+    except AssertionError:
+        print(f"Password reset request failed: {res.text}")
+        sys.exit(1)
+
+    store["reset"] = data['reset_token']
+
+
+def password_reset():
+    content = {
+        "token": store["reset"],
+        "username": "johndoe",
+        "password": "f88hfhhs2"
+    }
+    res = requests.put(f"{URL}/user/password", json=content)
+    try: 
+        assert res.status_code == 202
+    except AssertionError:
+        print(f"Password reset failed: {res.text}")
+        sys.exit(1)
+    
+    user1["Password"] = content["password"]
 
 
 ### User 2 functions
@@ -186,9 +216,13 @@ def clean_db():
 
 if __name__ == "__main__":
     arg = sys.argv
+    chgpw = False
+
     if len(arg) > 1:
         if arg[1] == '-r':
             register()
+        elif arg[1] == "-pw":
+            chgpw = True
         elif arg[1] == '-c':
             clean_db()
             sys.exit(0)
@@ -219,6 +253,10 @@ if __name__ == "__main__":
 
     get_user()
     update_profile()
+
+    if chgpw:
+        password_reset_init()
+        password_reset()
 
 
     

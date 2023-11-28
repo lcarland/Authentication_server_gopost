@@ -251,21 +251,26 @@ func modifyUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func createPasswordToken(w http.ResponseWriter, r *http.Request) {
-	var email map[string]string
+	var reqBody struct {
+		Email string `db:"email"`
+	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
-	dec.Decode(&email)
+	dec.Decode(&reqBody)
 
-	uid := db.DbService().GetUserIdWithEmail(email["email"])
+	uid := db.DbService().GetUserIdWithEmail(reqBody.Email)
 	newToken, _ := utils.GenerateCryptoString()
 	err := db.DbService().NewUserSession(uid, newToken, true)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusCreated)
+	fmt.Printf("Reset Token: %s", newToken)
+
+	// This should go out via email
+	w.WriteHeader(201)
 }
 
 func changePassword(w http.ResponseWriter, r *http.Request) {
@@ -289,9 +294,12 @@ func changePassword(w http.ResponseWriter, r *http.Request) {
 	}
 	err = db.DbService().NewUserHashById(uid, pwChangeReq.Password)
 	if err != nil {
+		fmt.Println("new user hash returned error")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	db.DbService().DeleteSession(pwChangeReq.Token)
+
 	w.WriteHeader(http.StatusAccepted)
 }
 
@@ -351,6 +359,7 @@ func newAccess(w http.ResponseWriter, user *db.UserAuth) {
 	accessToken, err := utils.GenerateAccessToken(&userClaims)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
+		return
 	}
 	userTokens := tokenResponse{
 		AccessToken:  accessToken,

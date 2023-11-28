@@ -256,9 +256,8 @@ func (db *Db) UpdateUserProfile(id int, updates map[string]any) error {
 
 func (db *Db) NewUserHashById(id int, password string) error {
 	hash := utils.GetPasswordHash(password)
-	val := fmt.Sprintf("passwordHash = %s", hash)
-	query := updateConstructor("users", val, "id = $1")
-	_, err := db.Exec(context.Background(), query, id)
+	query := updateConstructor("users", "passwordHash = $2", "id = $1")
+	_, err := db.Exec(context.Background(), query, id, hash)
 	if err != nil {
 		return err
 	}
@@ -290,7 +289,7 @@ func (db *Db) DeleteUser(id int) error {
 //====================================//
 
 func (db *Db) NewUserSession(id int, token string, pwReset bool) error {
-	query := "INSERT INTO sessions (token, user_id, refresh) VALUES ($1, $2)"
+	query := "INSERT INTO sessions (token, user_id, reset) VALUES ($1, $2, $3)"
 	_, err := db.Exec(context.Background(), query, token, id, pwReset)
 	if err != nil {
 		fmt.Println(err)
@@ -300,9 +299,10 @@ func (db *Db) NewUserSession(id int, token string, pwReset bool) error {
 }
 
 type sessionCheck struct {
-	Valid   bool `db:"valid"`
-	User_id int  `db:"user_id"`
-	Reset   bool `db:"reset"`
+	Valid       bool      `db:"valid"`
+	User_id     int       `db:"user_id"`
+	Reset       bool      `db:"reset"`
+	DateCreated time.Time `db:"date_created"`
 }
 
 // session check with QueryToken func returns a bool and error.
@@ -315,21 +315,21 @@ type sessionCheck struct {
 //  3. false, error( 'ErrNoRows' )
 //     - token was removed, user is asked to login again
 func (db *Db) QueryToken(token string, id int, pwReset bool) (bool, error) {
-	query := queryConstructor("sessions", "valid, user_id", "token = $1")
+	query := queryConstructor("sessions", "valid, user_id, reset, date_created", "token = $1")
 	rows, _ := db.Query(context.Background(), query, token)
 	s, err := pgx.CollectExactlyOneRow[sessionCheck](rows, pgx.RowToStructByName[sessionCheck])
 	if err != nil || s.User_id != id {
 		fmt.Println(err)
 		return false, err
 	}
-	if !s.Valid {
-		return false, nil
-	}
 
 	if pwReset && s.Reset {
-		// code needed for time checking
+
 		return true, nil
 	} else if pwReset && !s.Reset {
+		return false, nil
+	}
+	if !s.Valid {
 		return false, nil
 	}
 	// code needed for time checking
