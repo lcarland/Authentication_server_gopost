@@ -16,6 +16,7 @@ import (
 )
 
 var SECRET []byte = []byte(os.Getenv("SECRET_KEY"))
+var ACCESS []byte = []byte(os.Getenv("ACCESS_KEY"))
 
 // generate crypto random for tokens and PW Salt.
 func randomCryptoBytes() ([]byte, error) {
@@ -107,7 +108,7 @@ func GenerateAccessToken(claims *TokenClaims) (string, error) {
 	payloadEnc := base64Encode(payloadJSON)
 	head_payload := fmt.Sprintf("%s.%s", headerEnc, payloadEnc)
 
-	mac := hmac.New(sha256.New, SECRET)
+	mac := hmac.New(sha256.New, ACCESS)
 	mac.Write([]byte(head_payload))
 	signer := base64Encode(mac.Sum(nil))
 	return fmt.Sprintf("%s.%s", head_payload, signer), nil
@@ -124,18 +125,18 @@ func ValidateAccessToken(jwt string) (*TokenClaims, error) {
 	signer := token[2]
 
 	head_payload := fmt.Sprintf("%s.%s", token[0], token[1])
-	mac := hmac.New(sha256.New, SECRET)
+	mac := hmac.New(sha256.New, ACCESS)
 	mac.Write([]byte(head_payload))
 	sigCheck := base64Encode(mac.Sum(nil))
 
 	if signer != sigCheck {
-		return nil, fmt.Errorf("Signature does not match")
+		return nil, fmt.Errorf("signature does not match")
 	}
 
 	headerDec, _ := base64.RawStdEncoding.DecodeString(token[0])
 	json.Unmarshal(headerDec, &header)
 	if header["alg"] != jwtHeader["alg"] {
-		return nil, fmt.Errorf("Invalid Algorithm")
+		return nil, fmt.Errorf("invalid algorithm")
 	}
 
 	payloadDec, _ := base64.RawStdEncoding.DecodeString(token[1])

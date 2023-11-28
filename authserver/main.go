@@ -10,7 +10,6 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
 
-	"authapi/config"
 	"authapi/db"
 )
 
@@ -26,8 +25,8 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   config.ORIGINS,
-		AllowedMethods:   config.METHODS,
+		AllowedOrigins:   ORIGINS,
+		AllowedMethods:   METHODS,
 		AllowCredentials: true,
 	}))
 
@@ -87,12 +86,6 @@ func apiRoutes(r chi.Router) {
 	r.Delete("/cleanusers", deleteAllUsers)
 }
 
-var mediaTypes = map[string]string{
-	"JSON": "application/json",
-	"text": "text/html",
-	"form": "multipart/form-data",
-}
-
 func VerifyTypeJSON(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		contentHeader := r.Header.Get("Content-Type")
@@ -101,7 +94,7 @@ func VerifyTypeJSON(next http.Handler) http.Handler {
 			http.Error(w, msg, http.StatusUnsupportedMediaType)
 			return
 		}
-		if contentHeader != mediaTypes["JSON"] {
+		if contentHeader != MediaTypes["JSON"] {
 			msg := "Unsupported Media Type"
 			http.Error(w, msg, http.StatusUnsupportedMediaType)
 			return
