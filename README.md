@@ -23,7 +23,6 @@ What's Missing
 - Email Service for password resetting. Reset tokens are sent in the response body for testing purposes.
 - Email verification on sign-up
 - Multi-Factor authentication and/or clinet fingerprinting
-...and I'm sure more
 
 Setup
 -----
