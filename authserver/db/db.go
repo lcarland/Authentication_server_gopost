@@ -17,9 +17,10 @@ import (
 
 const (
 	host   = "localhost"
-	port   = 5432
 	dbname = "authdb"
 )
+
+var port string = os.Getenv("PG_PORT")
 
 type Db struct {
 	*pgxpool.Pool
@@ -29,7 +30,7 @@ func DbService() *Db {
 	var PGUSER string = os.Getenv("POSTGRES_USER")
 	var PGPASSWD string = os.Getenv("POSTGRES_PASSWORD")
 
-	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s", PGUSER, PGPASSWD, host, port, dbname)
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", PGUSER, PGPASSWD, host, port, dbname)
 
 	dbpool, err := pgxpool.New(context.Background(), connString)
 	if err != nil {

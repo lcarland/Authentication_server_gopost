@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -32,7 +33,7 @@ func main() {
 
 	r.Route("/", apiRoutes)
 
-	port := ":3000"
+	port := fmt.Sprintf(":%s", os.Getenv("GO_PORT"))
 	fmt.Printf("Listening on: http://localhost%s\n", port)
 	http.ListenAndServe(port, r)
 }
