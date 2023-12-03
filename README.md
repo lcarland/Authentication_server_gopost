@@ -26,9 +26,20 @@ What's Missing
 
 Setup
 -----
+Generate an RSA Key pair in PEM format for singing JWTs.
+
 A .env file is required in the project root.
 The file should contain these variables:
-- POSTGRES_USER
-- POSTGRES_PASSWORD
-- SECRET_KEY
-- ACCESS_KEY
+- POSTGRES_USER=*pgadmin_user*
+- POSTGRES_PASSWORD=*Long Acsii String*  
+
+*Secret key for password hashing*
+- SECRET_KEY=*Long Acsii String*
+
+*Port numbers for Postgres and Go Application*
+- PG_PORT=*3000*
+- GO_PORT=*5432*
+
+*RSA Key pair paths for JWT signing. Files should be PEM format and either absolute or relative to the main.go file.*
+- PRIV_KEY=*./private_key.pem*
+- PUB_KEY=*./public_key.pem*
