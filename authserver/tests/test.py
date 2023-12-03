@@ -21,6 +21,7 @@ Useage:
     -r register user
     -pw tests with change user password
     -c delete user entries
+    -pk gets the public key
     none - perform the other tests
 
 """
@@ -196,6 +197,12 @@ def password_reset():
     user1["Password"] = content["password"]
 
 
+def get_pub_key():
+    res = requests.get(f"{URL}/publickey")
+    print(res.text)
+
+
+
 ### User 2 functions
 def register2():
     res = requests.post(f"{URL}/user", json=user2)
@@ -224,6 +231,9 @@ if __name__ == "__main__":
         elif arg[1] == '-c':
             clean_db()
             sys.exit(0)
+        elif arg[1] == "-pk":
+            get_pub_key()
+            sys.exit(0)
         elif arg[1] == '-h':
             print(HELPTXT)
             sys.exit(0)
@@ -234,7 +244,6 @@ if __name__ == "__main__":
     # General login test
     # Test with and without token
     login()
-    print(store["access"])
     testToken()
     testNoToken()
 

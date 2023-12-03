@@ -134,23 +134,16 @@ func ValidateAccessToken(jwt string) (*TokenClaims, error) {
 	var header map[string]string
 	var payload TokenClaims
 
-	rsaPub, err := loadRSAPublicKey()
+	rsaPub, err := LoadRSAPublicKey()
 	if err != nil {
 		return nil, err
 	}
 
 	token := strings.Split(jwt, ".")
 	signer := token[2]
-
 	head_payload := fmt.Sprintf("%s.%s", token[0], token[1])
-	// mac := hmac.New(sha256.New, ACCESS)
-	// mac.Write([]byte(head_payload))
-	// sigCheck := base64Encode(mac.Sum(nil))
 
-	// if signer != sigCheck {
-	// 	return nil, fmt.Errorf("signature does not match")
-	// }
-	signerDec, err := base64.URLEncoding.DecodeString(signer)
+	signerDec, err := base64.RawURLEncoding.DecodeString(signer)
 	if err != nil {
 		fmt.Println("signature Decoding failed")
 		return nil, err
@@ -185,9 +178,7 @@ func ValidateAccessToken(jwt string) (*TokenClaims, error) {
 //================================//
 
 func loadRSAPrivateKey() (*rsa.PrivateKey, error) {
-	// wd, _ := os.Getwd()
-	// path := fmt.Sprintf("%s/../id_rsa", wd)
-	privateKeyFile, err := os.ReadFile("signing_key.pem")
+	privateKeyFile, err := os.ReadFile(os.Getenv("PRIV_KEY"))
 	if err != nil {
 		return nil, err
 	}
@@ -210,10 +201,8 @@ func loadRSAPrivateKey() (*rsa.PrivateKey, error) {
 	return privateKey, nil
 }
 
-func loadRSAPublicKey() (*rsa.PublicKey, error) {
-	// wd, _ := os.Getwd()
-	// path := fmt.Sprintf("%s/../id_rsa.pub", wd)
-	publicKeyFile, err := os.ReadFile("public_key.pem")
+func LoadRSAPublicKey() (*rsa.PublicKey, error) {
+	publicKeyFile, err := os.ReadFile(os.Getenv("PUB_KEY"))
 	if err != nil {
 		return nil, err
 	}

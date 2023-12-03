@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"reflect"
 	"strconv"
 	"time"
@@ -321,6 +322,17 @@ func checkJwt(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value("user").(*utils.TokenClaims)
 	w.Write([]byte(fmt.Sprintf("%d", user.User_id)))
 	w.WriteHeader(200)
+}
+
+// Public Key Endpoint
+func getPublicKey(w http.ResponseWriter, r *http.Request) {
+	pubkeyFile, err := os.ReadFile(os.Getenv("PUB_KEY"))
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	utils.WriteText(w, string(pubkeyFile), 200)
 }
 
 // DANGER. Find an alternative and remove

@@ -84,6 +84,7 @@ func apiRoutes(r chi.Router) {
 		r.Use(TokenRequired)
 		r.Get("/", checkJwt)
 	})
+	r.Get("/publickey", getPublicKey)
 	r.Delete("/cleanusers", deleteAllUsers)
 }
 
