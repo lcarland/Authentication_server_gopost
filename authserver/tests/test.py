@@ -80,7 +80,7 @@ def testToken():
     try:
         assert res.status_code == 200
     except AssertionError:
-        print(f"Token test faild: {res.text}")
+        print(f"Token test failed: {res.text}")
         sys.exit(1)
 
 
@@ -234,6 +234,7 @@ if __name__ == "__main__":
     # General login test
     # Test with and without token
     login()
+    print(store["access"])
     testToken()
     testNoToken()
 

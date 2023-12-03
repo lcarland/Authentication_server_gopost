@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"crypto/hmac"
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -122,8 +122,9 @@ func GenerateAccessToken(claims *TokenClaims) (string, error) {
 
 	sha := sha256.New()
 	sha.Write([]byte(head_payload))
-	signer := base64Encode(sha.Sum(nil))
-	return fmt.Sprintf("%s.%s", head_payload, signer), nil
+	signer, _ := rsa.SignPKCS1v15(rand.Reader, privKey, crypto.SHA256, sha.Sum(nil))
+	signerEnc := base64Encode(signer)
+	return fmt.Sprintf("%s.%s", head_payload, signerEnc), nil
 }
 
 // Verify JWT
@@ -133,19 +134,37 @@ func ValidateAccessToken(jwt string) (*TokenClaims, error) {
 	var header map[string]string
 	var payload TokenClaims
 
+	rsaPub, err := loadRSAPublicKey()
+	if err != nil {
+		return nil, err
+	}
+
 	token := strings.Split(jwt, ".")
 	signer := token[2]
 
 	head_payload := fmt.Sprintf("%s.%s", token[0], token[1])
-	mac := hmac.New(sha256.New, ACCESS)
-	mac.Write([]byte(head_payload))
-	sigCheck := base64Encode(mac.Sum(nil))
+	// mac := hmac.New(sha256.New, ACCESS)
+	// mac.Write([]byte(head_payload))
+	// sigCheck := base64Encode(mac.Sum(nil))
 
-	if signer != sigCheck {
-		return nil, fmt.Errorf("signature does not match")
+	// if signer != sigCheck {
+	// 	return nil, fmt.Errorf("signature does not match")
+	// }
+	signerDec, err := base64.URLEncoding.DecodeString(signer)
+	if err != nil {
+		fmt.Println("signature Decoding failed")
+		return nil, err
 	}
 
-	headerDec, _ := base64.RawStdEncoding.DecodeString(token[0])
+	sha := sha256.New()
+	sha.Write([]byte(head_payload))
+
+	verifyErr := rsa.VerifyPKCS1v15(rsaPub, crypto.SHA256, sha.Sum(nil), signerDec)
+	if verifyErr != nil {
+		return nil, verifyErr
+	}
+
+	headerDec, _ := base64.RawURLEncoding.DecodeString(token[0])
 	json.Unmarshal(headerDec, &header)
 	if header["alg"] != jwtHeader["alg"] {
 		return nil, fmt.Errorf("invalid algorithm")
@@ -168,19 +187,24 @@ func ValidateAccessToken(jwt string) (*TokenClaims, error) {
 func loadRSAPrivateKey() (*rsa.PrivateKey, error) {
 	// wd, _ := os.Getwd()
 	// path := fmt.Sprintf("%s/../id_rsa", wd)
-	privateKeyFile, err := os.ReadFile("../id_rsa")
+	privateKeyFile, err := os.ReadFile("signing_key.pem")
 	if err != nil {
 		return nil, err
 	}
 
 	block, _ := pem.Decode(privateKeyFile)
 	if block == nil {
-		return nil, fmt.Errorf("Failed to parse Private Key.")
+		return nil, fmt.Errorf("failed to parse private Key")
 	}
 
-	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
 		return nil, err
+	}
+
+	privateKey, ok := key.(*rsa.PrivateKey)
+	if !ok {
+		return nil, fmt.Errorf("not a pem format")
 	}
 
 	return privateKey, nil
@@ -189,14 +213,14 @@ func loadRSAPrivateKey() (*rsa.PrivateKey, error) {
 func loadRSAPublicKey() (*rsa.PublicKey, error) {
 	// wd, _ := os.Getwd()
 	// path := fmt.Sprintf("%s/../id_rsa.pub", wd)
-	publicKeyFile, err := os.ReadFile("../id_rsa.pub")
+	publicKeyFile, err := os.ReadFile("public_key.pem")
 	if err != nil {
 		return nil, err
 	}
 
 	block, _ := pem.Decode(publicKeyFile)
 	if block == nil {
-		return nil, fmt.Errorf("Failed to parse Public key")
+		return nil, fmt.Errorf("failed to parse public key")
 	}
 
 	publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
