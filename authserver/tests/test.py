@@ -20,7 +20,6 @@ Useage:
     -h help - prints this help text
     -r register user
     -pw tests with change user password
-    -c delete user entries
     -pk gets the public key
     none - perform the other tests
 
@@ -63,7 +62,7 @@ def login():
     res = requests.post(f"{URL}/session", json=content)
     try:
         assert res.status_code == 201
-    except:
+    except AssertionError:
         print(f"Login failed: {res.text}")
         sys.exit(1)
 
@@ -107,7 +106,7 @@ def refreshToken():
         data = res.json()
         store["access"] = data["AccessToken"]
         store["refresh"] = data["RefreshToken"]
-    except:
+    except AssertionError:
         print(f"Refresh Test Failed: {res.text}")
         sys.exit(1)
     
@@ -139,7 +138,7 @@ def refreshDoubleUse():
     
     try:
         assert res.status_code == 401
-    except:
+    except AssertionError:
         print("Refresh with DELETED token did not work as expected")
         print(f"Error if applicable: {res.text}")
         sys.exit(1)
@@ -214,11 +213,6 @@ def register2():
         sys.exit(1)
 
 
-def clean_db():
-    res = requests.delete(f"{URL}/cleanusers")
-    print(f"{res.status_code} {res.text}")
-
-
 if __name__ == "__main__":
     arg = sys.argv
     chgpw = False
@@ -228,9 +222,6 @@ if __name__ == "__main__":
             register()
         elif arg[1] == "-pw":
             chgpw = True
-        elif arg[1] == '-c':
-            clean_db()
-            sys.exit(0)
         elif arg[1] == "-pk":
             get_pub_key()
             sys.exit(0)

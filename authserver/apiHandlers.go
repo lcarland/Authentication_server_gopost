@@ -202,6 +202,7 @@ func RefreshAccess(w http.ResponseWriter, r *http.Request) {
 	newAccess(w, user)
 }
 
+// struct used to validate json body
 type UserMod struct {
 	username   string
 	first_name string
@@ -212,6 +213,7 @@ type UserMod struct {
 }
 
 func modifyUser(w http.ResponseWriter, r *http.Request) {
+
 	user := r.Context().Value("user").(*utils.TokenClaims)
 
 	userRequested, err := strconv.Atoi(chi.URLParam(r, "user_id"))
