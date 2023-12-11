@@ -85,7 +85,6 @@ func apiRoutes(r chi.Router) {
 		r.Get("/", checkJwt)
 	})
 	r.Get("/publickey", getPublicKey)
-	r.Delete("/cleanusers", deleteAllUsers)
 }
 
 func VerifyTypeJSON(next http.Handler) http.Handler {

@@ -335,17 +335,6 @@ func getPublicKey(w http.ResponseWriter, r *http.Request) {
 	utils.WriteText(w, string(pubkeyFile), 200)
 }
 
-// DANGER. Find an alternative and remove
-func deleteAllUsers(w http.ResponseWriter, r *http.Request) {
-	err := db.DbService().DeleteAllUsers()
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		fmt.Println(err)
-		return
-	}
-	w.WriteHeader(200)
-}
-
 //==============================//
 // ---- Handler Extensions ---- //
 //==============================//
