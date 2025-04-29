@@ -3,9 +3,11 @@ services:
   # authapp:
   #   build: ./authserver/.
   #   ports:
-  #     - "8080:8080"
+  #     - "${GO_PORT}:${GO_PORT}"
   #   volumes:
   #     - ./authserver:/srv/app
+  #   env_file:
+  #     - .env
       
   postgres:
     image: postgres:16-alpine3.18
@@ -18,6 +20,8 @@ services:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "${PG_PORT}:5432"
+    env_file:
+      - .env
 
 volumes:
   pgdata:

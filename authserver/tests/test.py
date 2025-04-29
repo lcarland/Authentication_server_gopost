@@ -44,6 +44,8 @@ user2 = {
     "Country": "XX"
 }
 
+new_pw = "f88hfhhs2"
+
 
 def register():
     res = requests.post(f"{URL}/user", json=user1)
@@ -180,11 +182,11 @@ def password_reset_init():
     store["reset"] = data['reset_token']
 
 
-def password_reset():
+def password_reset(new_pw: str):
     content = {
         "token": store["reset"],
         "username": "johndoe",
-        "password": "f88hfhhs2"
+        "password": new_pw
     }
     res = requests.put(f"{URL}/user/password", json=content)
     try: 
@@ -215,13 +217,17 @@ def register2():
 
 if __name__ == "__main__":
     arg = sys.argv
+
     chgpw = False
+    undo_chgpw = False
 
     if len(arg) > 1:
         if arg[1] == '-r':
             register()
         elif arg[1] == "-pw":
             chgpw = True
+        elif arg[1] == '-upw':
+            undo_chgpw = True
         elif arg[1] == "-pk":
             get_pub_key()
             sys.exit(0)
@@ -231,6 +237,10 @@ if __name__ == "__main__":
         else:
             print("invalid option: use -h for help")
             sys.exit(0)
+
+    if undo_chgpw:
+        password_reset_init()
+        password_reset(user1["Password"])
 
     # General login test
     # Test with and without token
@@ -255,10 +265,7 @@ if __name__ == "__main__":
 
     if chgpw:
         password_reset_init()
-        password_reset()
+        password_reset(new_pw)
 
-
-    
-
-    print('\ntests complete')
+    print('\nAll Tests Passed!')
 
