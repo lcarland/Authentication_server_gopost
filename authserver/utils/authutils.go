@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/ed25519"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
@@ -109,7 +110,7 @@ func base64Encode(src []byte) string {
 
 // Generate new Access JWT Token
 func GenerateAccessToken(claims *TokenClaims) (string, error) {
-	privKey, err := loadRSAPrivateKey()
+	privKey, err := LoadEd25519PrivateKey()
 	if err != nil {
 		return "", err
 	}
@@ -122,7 +123,7 @@ func GenerateAccessToken(claims *TokenClaims) (string, error) {
 
 	sha := sha256.New()
 	sha.Write([]byte(head_payload))
-	signer, _ := rsa.SignPKCS1v15(rand.Reader, privKey, crypto.SHA256, sha.Sum(nil))
+	signer, _ := ed25519.Sign(rand.Reader, privKey, crypto.SHA256, sha.Sum(nil))
 	signerEnc := base64Encode(signer)
 	return fmt.Sprintf("%s.%s", head_payload, signerEnc), nil
 }
@@ -134,7 +135,7 @@ func ValidateAccessToken(jwt string) (*TokenClaims, error) {
 	var header map[string]string
 	var payload TokenClaims
 
-	rsaPub, err := LoadRSAPublicKey()
+	pubKey, err := LoadEd25519PublicKey()
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +153,7 @@ func ValidateAccessToken(jwt string) (*TokenClaims, error) {
 	sha := sha256.New()
 	sha.Write([]byte(head_payload))
 
-	verifyErr := rsa.VerifyPKCS1v15(rsaPub, crypto.SHA256, sha.Sum(nil), signerDec)
+	verifyErr := ed25519.Sign(rsaPub, crypto.SHA256, sha.Sum(nil), signerDec)
 	if verifyErr != nil {
 		return nil, verifyErr
 	}
@@ -177,7 +178,7 @@ func ValidateAccessToken(jwt string) (*TokenClaims, error) {
 // ---- RSA Key File Loaders ---- //
 //================================//
 
-func loadRSAPrivateKey() (*rsa.PrivateKey, error) {
+func LoadEd25519PrivateKey() (ed25519.PrivateKey, error) {
 	privateKeyFile, err := os.ReadFile(os.Getenv("PRIV_KEY"))
 	if err != nil {
 		return nil, err
@@ -193,15 +194,15 @@ func loadRSAPrivateKey() (*rsa.PrivateKey, error) {
 		return nil, err
 	}
 
-	privateKey, ok := key.(*rsa.PrivateKey)
+	privateKey, ok := key.(ed25519.PrivateKey)
 	if !ok {
-		return nil, fmt.Errorf("not a pem format")
+		return nil, fmt.Errorf("not an ed25519 private key")
 	}
 
 	return privateKey, nil
 }
 
-func LoadRSAPublicKey() (*rsa.PublicKey, error) {
+func LoadEd25519PublicKey() (ed25519.PublicKey, error) {
 	publicKeyFile, err := os.ReadFile(os.Getenv("PUB_KEY"))
 	if err != nil {
 		return nil, err
@@ -217,10 +218,10 @@ func LoadRSAPublicKey() (*rsa.PublicKey, error) {
 		return nil, fmt.Errorf("failed to parse public key: %v", err)
 	}
 
-	rsaPub, ok := publicKey.(*rsa.PublicKey)
+	pubKey, ok := publicKey.(ed25519.PublicKey)
 	if !ok {
 		return nil, fmt.Errorf("not RSA public key")
 	}
 
-	return rsaPub, nil
+	return pubKey, nil
 }
