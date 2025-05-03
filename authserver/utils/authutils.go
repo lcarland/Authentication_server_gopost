@@ -1,10 +1,8 @@
 package utils
 
 import (
-	"crypto"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
@@ -123,7 +121,7 @@ func GenerateAccessToken(claims *TokenClaims) (string, error) {
 
 	sha := sha256.New()
 	sha.Write([]byte(head_payload))
-	signer, _ := ed25519.Sign(rand.Reader, privKey, crypto.SHA256, sha.Sum(nil))
+	signer := ed25519.Sign(privKey, []byte(head_payload))
 	signerEnc := base64Encode(signer)
 	return fmt.Sprintf("%s.%s", head_payload, signerEnc), nil
 }
@@ -150,12 +148,10 @@ func ValidateAccessToken(jwt string) (*TokenClaims, error) {
 		return nil, err
 	}
 
-	sha := sha256.New()
-	sha.Write([]byte(head_payload))
-
-	verifyErr := ed25519.Sign(rsaPub, crypto.SHA256, sha.Sum(nil), signerDec)
-	if verifyErr != nil {
-		return nil, verifyErr
+	// Verify the signature
+	verifyErr := ed25519.Verify(pubKey, []byte(head_payload), signerDec)
+	if !verifyErr {
+		return nil, fmt.Errorf("signature mismatch")
 	}
 
 	headerDec, _ := base64.RawURLEncoding.DecodeString(token[0])
@@ -164,6 +160,7 @@ func ValidateAccessToken(jwt string) (*TokenClaims, error) {
 		return nil, fmt.Errorf("invalid algorithm")
 	}
 
+	// Decode the payload
 	payloadDec, _ := base64.RawStdEncoding.DecodeString(token[1])
 	json.Unmarshal(payloadDec, &payload)
 
@@ -174,9 +171,9 @@ func ValidateAccessToken(jwt string) (*TokenClaims, error) {
 	return &payload, nil
 }
 
-//================================//
-// ---- RSA Key File Loaders ---- //
-//================================//
+//====================================//
+// ---- ED25519 Key File Loaders ---- //
+//====================================//
 
 func LoadEd25519PrivateKey() (ed25519.PrivateKey, error) {
 	privateKeyFile, err := os.ReadFile(os.Getenv("PRIV_KEY"))

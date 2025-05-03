@@ -44,7 +44,7 @@ user2 = {
     "Country": "XX"
 }
 
-new_pw = "f88hfhhs2"
+PW_UPDATE = "f88hfhhs2"
 
 
 def register():
@@ -258,7 +258,7 @@ if __name__ == "__main__":
 
     if chgpw:
         password_reset_init()
-        password_reset(new_pw)
+        password_reset(PW_UPDATE)
         print("Password changed\n")
         password_reset_init()
         password_reset(user1["Password"])
