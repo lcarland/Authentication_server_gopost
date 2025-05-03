@@ -219,15 +219,12 @@ if __name__ == "__main__":
     arg = sys.argv
 
     chgpw = False
-    undo_chgpw = False
 
     if len(arg) > 1:
         if arg[1] == '-r':
             register()
         elif arg[1] == "-pw":
             chgpw = True
-        elif arg[1] == '-upw':
-            undo_chgpw = True
         elif arg[1] == "-pk":
             get_pub_key()
             sys.exit(0)
@@ -237,10 +234,6 @@ if __name__ == "__main__":
         else:
             print("invalid option: use -h for help")
             sys.exit(0)
-
-    if undo_chgpw:
-        password_reset_init()
-        password_reset(user1["Password"])
 
     # General login test
     # Test with and without token
@@ -266,6 +259,10 @@ if __name__ == "__main__":
     if chgpw:
         password_reset_init()
         password_reset(new_pw)
+        print("Password changed\n")
+        password_reset_init()
+        password_reset(user1["Password"])
+        print("Password changed back to original\n")
 
     print('\nAll Tests Passed!')
 

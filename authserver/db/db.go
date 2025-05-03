@@ -58,7 +58,7 @@ func (db *Db) GetCountry(code string) (*Country, error) {
 		fmt.Println("DB Error Occurred:", err)
 		return nil, err
 	}
-	c, err := pgx.CollectExactlyOneRow[Country](rows, pgx.RowToStructByName[Country])
+	c, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[Country])
 	if err != nil {
 		fmt.Println("DB Error Occurred:", err)
 		return nil, err
@@ -69,7 +69,7 @@ func (db *Db) GetCountry(code string) (*Country, error) {
 func (db *Db) GetAllCountries() (*[]Country, error) {
 	query := "SELECT code, country, dialcode FROM countries;"
 	rows, _ := db.Query(context.Background(), query)
-	c, err := pgx.CollectRows[Country](rows, pgx.RowToStructByName[Country])
+	c, err := pgx.CollectRows(rows, pgx.RowToStructByName[Country])
 	return &c, err
 }
 
@@ -142,7 +142,7 @@ func (db *Db) SelectPrivateUserById(id int) (*User, error) {
 	query := queryConstructor("users", userPrivate, "id = $1")
 
 	rows, _ := db.Query(context.Background(), query, id)
-	u, err := pgx.CollectExactlyOneRow[User](rows, pgx.RowToStructByName[User])
+	u, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[User])
 	if err != nil {
 		fmt.Println("DB SELECT Error:", err)
 		return nil, err
@@ -162,7 +162,7 @@ type UserPublic struct {
 func (db *Db) SelectPublicUser(id int) (*UserPublic, error) {
 	query := queryConstructor("users", userPublic, "id = $1")
 	rows, _ := db.Query(context.Background(), query, id)
-	u, err := pgx.CollectExactlyOneRow[UserPublic](rows, pgx.RowToStructByName[UserPublic])
+	u, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[UserPublic])
 	if err == nil {
 		fmt.Println("DB SEL Err", err)
 		return &UserPublic{}, err
@@ -184,7 +184,7 @@ func (db *Db) SelectUserAuth(username string) (*UserAuth, error) {
 	fields := "id, username, passwordHash, is_superuser, is_staff, is_active"
 	query := queryConstructor("users", fields, "username = $1")
 	rows, _ := db.Query(context.Background(), query, username)
-	s, err := pgx.CollectExactlyOneRow[UserAuth](rows, pgx.RowToStructByName[UserAuth])
+	s, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[UserAuth])
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +199,7 @@ type userId struct {
 func (db *Db) GetUserId(username string) int {
 	query := queryConstructor("users", "id", "username = $1")
 	rows, _ := db.Query(context.Background(), query, username)
-	id, err := pgx.CollectExactlyOneRow[userId](rows, pgx.RowToStructByName[userId])
+	id, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[userId])
 	if err != nil {
 		fmt.Println(err)
 		return 0
@@ -210,7 +210,7 @@ func (db *Db) GetUserId(username string) int {
 func (db *Db) GetUserIdWithEmail(email string) int {
 	query := queryConstructor("users", "id", "email = $1")
 	rows, _ := db.Query(context.Background(), query, email)
-	id, err := pgx.CollectExactlyOneRow[userId](rows, pgx.RowToStructByName[userId])
+	id, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[userId])
 	if err != nil {
 		fmt.Println(err)
 		return 0
@@ -225,7 +225,7 @@ type userHash struct {
 func (db *Db) SelectUserHash(id int) string {
 	query := queryConstructor("users", "passwordHash", "id = $1")
 	rows, _ := db.Query(context.Background(), query, id)
-	h, err := pgx.CollectExactlyOneRow[userHash](rows, pgx.RowToStructByName[userHash])
+	h, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[userHash])
 	if err != nil {
 		fmt.Println(err)
 		return ""
@@ -324,7 +324,7 @@ type sessionCheck struct {
 func (db *Db) QueryToken(token string, id int, pwReset bool) (bool, error) {
 	query := queryConstructor("sessions", "valid, user_id, pw_reset, expires", "token = $1")
 	rows, _ := db.Query(context.Background(), query, token)
-	s, err := pgx.CollectExactlyOneRow[sessionCheck](rows, pgx.RowToStructByName[sessionCheck])
+	s, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[sessionCheck])
 	if err != nil || s.User_id != id {
 		fmt.Println(err)
 		return false, err

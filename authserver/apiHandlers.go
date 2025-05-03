@@ -247,7 +247,7 @@ func modifyUser(w http.ResponseWriter, r *http.Request) {
 
 	err2 := db.DbService().UpdateUserProfile(user.User_id, u)
 	if err2 != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err2.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
