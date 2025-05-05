@@ -40,7 +40,7 @@ The file should contain these variables:
 - PG_PORT=*3000*
 - GO_PORT=*5432*
 
-*RSA Key pair paths for JWT signing. Files should be PEM format and either absolute or relative to the main.go file.*
+*ED25519 Key pair paths for JWT signing. Files should be PEM format and either absolute or relative to the main.go file.*
 - PRIV_KEY=*./private_key.pem*
 - PUB_KEY=*./public_key.pem*
 
