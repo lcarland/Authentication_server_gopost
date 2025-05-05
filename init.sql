@@ -47,12 +47,12 @@ CREATE TABLE permissions (
 );
 
 CREATE TABLE permissions_users (
-    group_id INT REFERENCES permissions (id) ON UPDATE CASCADE,
+    permissions_id INT REFERENCES permissions (id) ON UPDATE CASCADE,
     user_id INT REFERENCES users (id) ON UPDATE CASCADE ON DELETE CASCADE,
 );
 
 CREATE TABLE permissions_applications (
-    group_id INT REFERENCES permissions (id) ON UPDATE CASCADE,
+    permissions_id INT REFERENCES permissions (id) ON UPDATE CASCADE,
     app_id INT REFERENCES applications (id) ON UPDATE CASCADE ON DELETE CASCADE,
 );
 
